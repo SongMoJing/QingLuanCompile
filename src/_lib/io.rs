@@ -1,9 +1,8 @@
-use std::collections::HashMap;
+use colored::{ColoredString, Colorize};
 use std::fs;
 use std::io;
 use std::io::BufRead;
-use std::process::{exit, Command};
-use colored::{ColoredString, Colorize};
+use std::process::exit;
 
 /// # 文件读取器
 pub struct FileWrapper {
@@ -101,7 +100,7 @@ impl FileLine {
 pub struct Log {
 	_type: ColoredString,
 	_msg: String,
-	_stop: Option<i32>,
+	_stop: i32,
 }
 
 pub enum LogType {
@@ -123,18 +122,18 @@ impl Log {
 				LogType::Warn => "警告".yellow(),
 			},
 			_msg: _msg.to_string(),
-			_stop: if stop_key != 0 { Option::from(stop_key) } else { None },
+			_stop: stop_key,
 		}
 	}
 
 	/// ## 打印日志
-	/// 同一类型
 	pub fn print(&self) {
-		if !self._stop.is_none() {
-			eprint!("{}: {}", self._type, self._msg);
-			exit(self._stop.unwrap());
-		} else {
-			println!("{}: {}", self._type, self._msg);
-		}
+		println!("{}: {}", self._type, self._msg)
+	}
+
+	/// ## 打印错误
+	pub fn throw(&self) -> ! {
+		eprint!("{}: {}", self._type, self._msg);
+		exit(self._stop);
 	}
 }

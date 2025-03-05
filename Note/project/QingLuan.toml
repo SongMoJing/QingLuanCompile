@@ -13,10 +13,3 @@ target = "App"
 
 [dependencies]
 ooo = { version = "0.1.0", include = ["feature0-1", "feature0-2"] }
-
-
-
-
-
-
-

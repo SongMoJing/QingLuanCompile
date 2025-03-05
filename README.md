@@ -44,6 +44,7 @@ main = "src/main.qls"
 authors = [
     "PRC.松蓦箐 <Song_Mojing@outlook.com>"
 ]
+
 # 依赖
 [dependencies]
 # version 版本
