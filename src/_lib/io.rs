@@ -9,7 +9,6 @@ pub struct FileWrapper {
 	works: bool,
 	path: String,
 	file: Option<io::BufReader<fs::File>>,
-	line: FileLine,
 }
 
 impl FileWrapper {
@@ -26,12 +25,10 @@ impl FileWrapper {
 							works: false,
 							path,
 							file: None,
-							line: FileLine::new(0, "".to_string()),
 						},
 					}
 				}))
-			},
-			line: FileLine::new(0, "".to_string()),
+			}
 		}
 	}
 
@@ -45,19 +42,10 @@ impl FileWrapper {
 		self.path.clone()
 	}
 
-	/// ## 获取当前行数
-	pub fn reading(&self) -> FileLine {
-		self.line.clone()
-	}
-
 	/// ## 读取下一行
-	pub fn next(&mut self) -> Option<FileLine> {
+	pub fn next(&mut self) -> Option<io::Result<String>> {
 		if self.works {
-			if let Some(line) = self.file.as_mut().unwrap().lines().next() {
-				self.line = FileLine::new(self.line.number() + 1, line.unwrap());
-				return Some(self.line.clone());
-			}
-			return None;
+			self.file.as_mut().unwrap().lines().next()
 		} else {
 			None
 		}
@@ -69,43 +57,71 @@ impl FileWrapper {
 	}
 }
 
-/// # 文件行
-pub struct FileLine {
-	number: u128,
-	data: String,
+pub enum Char {
+	Char(char),
+	EndLine,
+	EndFile,
 }
 
-impl FileLine {
-	pub fn new(number: u128, data: String) -> Self {
-		Self { number, data }
-	}
-	/// ## 获取行号
-	pub fn number(&self) -> u128 {
-		self.number
-	}
-	/// ## 获取行数据
-	pub fn data(&self) -> String {
-		self.data.clone()
-	}
-	/// ## 克隆
-	pub fn clone(&self) -> Self {
-		Self {
-			number: self.number,
-			data: self.data.clone(),
+pub struct Cursor {
+	num_line: usize,
+	num_column: usize,
+	content: FileWrapper,
+	line: String,
+	point: char,
+}
+
+impl Cursor {
+	pub fn new(file: FileWrapper) -> Self {
+		Cursor {
+			content: file,
+			num_line: 0,
+			num_column: 0,
+			line: String::new(),
+			point: '\u{0}',
 		}
+	}
+
+	/// ## 读取下一个字符
+	/// return char
+	pub fn next(&mut self) -> Char {
+		if self.num_column >= self.line.len() {
+			return if let Some(i) = self.content.next() {
+				if let Ok(i) = i {
+					self.num_line += 1;
+					self.num_column = 0;
+					self.line = i;
+					self.point = '\u{0}';
+					Char::EndLine
+				} else {
+					Char::EndFile
+				}
+			} else {
+				Char::EndFile
+			}
+		} else {
+			self.point = self.line.chars().nth(self.num_column - 1).unwrap();
+			self.num_column += 1;
+		}
+		Char::Char(self.point)
+	}
+
+	/// ## 获取当前位置
+	/// return x, y, char
+	pub fn get_position(&self) -> (usize, usize, char) {
+		(self.num_line, self.num_column, self.point)
 	}
 }
 
 /// # 日志
 pub struct Log {
 	_type: ColoredString,
-	_msg: String,
-	_stop: i32,
+	_msg: String
 }
 
 pub enum LogType {
 	Err,
-	Info,
+	Info(ColoredString),
 	Warn,
 }
 
@@ -114,15 +130,14 @@ impl Log {
 	/// `_type` 错误的类型： e:错误 i:表示信息 w:表示警告 <br />
 	/// `_msg` 消息正文 <br />
 	/// `stop_key` 是退出程序的代码（如果错误是致命的） <br />如果为`0`则不退出程序，继续运行
-	pub fn new(_type: LogType, _msg: &str, stop_key: i32) -> Self {
+	pub fn new(_type: LogType, _msg: &str) -> Self {
 		Self {
 			_type: match _type {
-				LogType::Err => "错误".red(),
-				LogType::Info => "信息".bold(),
+				LogType::Info(s) => s,
 				LogType::Warn => "警告".yellow(),
+				LogType::Err => "错误".red(),
 			},
 			_msg: _msg.to_string(),
-			_stop: stop_key,
 		}
 	}
 
@@ -132,8 +147,8 @@ impl Log {
 	}
 
 	/// ## 打印错误
-	pub fn throw(&self) -> ! {
-		eprint!("{}: {}", self._type, self._msg);
-		exit(self._stop);
+	pub fn throw(&self, exit_code: i32) -> ! {
+		eprint!("{}[{}] {}", self._type, exit_code.to_string().yellow(), self._msg);
+		exit(exit_code);
 	}
 }

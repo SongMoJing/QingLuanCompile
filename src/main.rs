@@ -1,10 +1,9 @@
+use crate::_lib::io::{Log, LogType};
+use crate::parser::toml::ProjectConfig;
+use colored::*;
 use std::io::ErrorKind;
 use std::process::exit;
-
-use crate::_lib::io::{Log, LogType};
-use crate::parser::toml;
-use colored::*;
-use serde::Deserialize;
+use std::sync::{Mutex, OnceLock};
 
 mod _lib;
 mod core;
@@ -24,6 +23,52 @@ struct Args {
 	project_path: Option<String>,
 	_help: bool,
 	_compile: &'static str,
+}
+
+static PROJECT_CONFIG: OnceLock<Mutex<ProjectConfig>> = OnceLock::new();
+// static PROJECT_ROOT: OnceLock<Mutex<&str>> = OnceLock::new();
+
+fn main() {
+	#[cfg(windows)]
+	enable_ansi_support();
+	// 获得参数
+	let args = get_args();
+	// 检查开始方式
+	if let Some(root_path) = &args.project_path {
+		// 查看projectPath是否存在
+		std::fs::metadata(root_path).unwrap_or_else(|e| match e.kind() {
+			ErrorKind::NotFound => {
+				Log::new(LogType::Err, format!("路径 {} 不存在。", root_path).as_str()).throw(21);
+			}
+			ErrorKind::PermissionDenied => {
+				Log::new(LogType::Err, format!("路径 {} 读取失败，请检查文件权限。", root_path).as_str()).throw(22);
+			}
+			_ => {
+				Log::new(LogType::Err, format!("路径 {} 产生未知错误。", root_path).as_str()).throw(20);
+			}
+		});
+		// 读取QingLuan.toml文件
+		let mut toml = _lib::io::FileWrapper::new(format!("{root_path}/QingLuan.toml"));
+		// 读取文件内容
+		let content: String = toml.read_to_string().unwrap_or_else(|e| match e.kind() {
+			ErrorKind::NotFound => {
+				Log::new(LogType::Err, "QingLuan.toml 文件读取失败，请检查文件是否存在。").throw(21);
+			}
+			ErrorKind::PermissionDenied => {
+				Log::new(LogType::Err, "QingLuan.toml 文件读取失败，请检查文件权限。").throw(22);
+			}
+			_ => {
+				Log::new(LogType::Err, "QingLuan.toml 产生未知错误。").throw(20);
+			}
+		});
+		// 解析项目配置并加入全局变量
+		PROJECT_CONFIG.get_or_init(|| Mutex::new(parser::toml::parser_config(content)));
+		// PROJECT_ROOT.get_or_init(|| Mutex::new(root_path.clone().as_str()));
+		Log::new(LogType::Info("编译".green()), "项目开始解析").print();
+		parser::start();
+	} else {
+		Log::new(LogType::Err, "缺少项目路径。").throw(10);
+	}
 }
 
 /// ## 启用 ANSI 支持
@@ -79,68 +124,22 @@ fn get_args() -> Args {
 							"debug" => res._compile = "debug",
 							"release" => res._compile = "release",
 							_ => {
-								Log::new(LogType::Err, format!("未知的编译方式 {}。", path).as_str(), 12).throw();
+								Log::new(LogType::Err, format!("未知的编译方式 {}。", path).as_str()).throw(12);
 							}
 						}
 					} else {
 						res._compile = "debug";
-						Log::new(LogType::Warn, "缺少编译方式，默认为Debug", 0).print();
+						Log::new(LogType::Warn, "缺少编译方式，默认为Debug").print();
 					}
 				}
 				// 未知目标
 				_ => {
-					Log::new(LogType::Err, format!("未知的选项 {}。", arg).as_str(), 11).throw();
+					Log::new(LogType::Err, format!("未知的选项 {}。", arg).as_str()).throw(11);
 				}
 			}
+		} else {
+			res.project_path = Some(arg);
 		}
-	}
-
-	// 检查
-	if !res.project_path.is_none() {
-		let current_dir = std::env::current_dir().unwrap_or_else(|_| {
-			Log::new(LogType::Err, "无法获取当前目录", 13).throw();
-		});
-		res.project_path = Some(current_dir.display().to_string())
 	}
 	res
 }
-
-fn main() {
-	#[cfg(windows)]
-	enable_ansi_support();
-	// 获得参数
-	let args = get_args();
-	// 检查开始方式
-	if let Some(root_path) = &args.project_path {
-		// 查看projectPath是否存在
-		std::fs::metadata(root_path).unwrap_or_else(|e| match e.kind() {
-			ErrorKind::NotFound => {
-				Log::new(LogType::Err, format!("路径 {} 不存在。", root_path).as_str(), 21).throw();
-			}
-			ErrorKind::PermissionDenied => {
-				Log::new(LogType::Err, format!("路径 {} 读取失败，请检查文件权限。", root_path).as_str(), 22).throw();
-			}
-			_ => {
-				Log::new(LogType::Err, format!("路径 {} 产生未知错误。", root_path).as_str(), 20).throw();
-			}
-		});
-		// 读取QingLuan.toml文件
-		let mut toml = _lib::io::FileWrapper::new(format!("{root_path}/QingLuan.toml"));
-		// 读取文件内容
-		let content: String = toml.read_to_string().unwrap_or_else(|e| match e.kind() {
-			ErrorKind::NotFound => {
-				Log::new(LogType::Err, "QingLuan.toml 文件读取失败，请检查文件是否存在。", 21).throw();
-			}
-			ErrorKind::PermissionDenied => {
-				Log::new(LogType::Err, "QingLuan.toml 文件读取失败，请检查文件权限。", 22).throw();
-			}
-			_ => {
-				Log::new(LogType::Err, "QingLuan.toml 产生未知错误。", 20).throw();
-			}
-		});
-		// 解析文件内容
-		toml::parser_project(content);
-	}
-}
-
-
