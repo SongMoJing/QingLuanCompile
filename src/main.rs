@@ -26,7 +26,7 @@ struct Args {
 }
 
 static PROJECT_CONFIG: OnceLock<Mutex<ProjectConfig>> = OnceLock::new();
-// static PROJECT_ROOT: OnceLock<Mutex<&str>> = OnceLock::new();
+static PROJECT_ROOT: OnceLock<Mutex<String>> = OnceLock::new();
 
 fn main() {
 	#[cfg(windows)]
@@ -63,7 +63,7 @@ fn main() {
 		});
 		// 解析项目配置并加入全局变量
 		PROJECT_CONFIG.get_or_init(|| Mutex::new(parser::toml::parser_config(content)));
-		// PROJECT_ROOT.get_or_init(|| Mutex::new(root_path.clone().as_str()));
+		PROJECT_ROOT.get_or_init(|| Mutex::new(root_path.replace("\\", "/")));
 		Log::new(LogType::Info("编译".green()), "项目开始解析").print();
 		parser::start();
 	} else {
