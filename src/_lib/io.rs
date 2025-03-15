@@ -142,12 +142,12 @@ impl Log {
 	}
 
 	/// ## 打印日志
-	pub fn print(&self) {
+	pub fn print(self) {
 		println!("{}: {}", self._type, self._msg)
 	}
 
 	/// ## 打印错误
-	pub fn throw(&self, exit_code: i32) -> ! {
+	pub fn throw(self, exit_code: i32) -> ! {
 		eprint!("{}[{}] {}", self._type, exit_code.to_string().yellow(), self._msg);
 		exit(exit_code);
 	}
