@@ -46,6 +46,31 @@ pub fn parser_config(content: String) -> ProjectConfig {
 		} else {
 			Log::new(LogType::Err, "QingLuan.toml 文件解析失败：build缺少path键，请检查文件格式。").throw(23);
 		}
+		if let Some(print) = table.get("print").and_then(Value::as_table) {
+			for (key, val) in print {
+				match key.as_str() {
+					// 文件完成后提示
+					"file_ok" => {
+						if let Value::Boolean(v) = val {
+							build.print.file_ok = *v;
+						} else {
+							Log::new(LogType::Err, format!("依赖文件解析失败，build中print项 {} 的值不是布尔值。", key).as_str()).throw(23)
+						}
+					}
+					// 警告提示
+					"warn" => {
+						if let Value::Boolean(v) = val {
+							build.print.warn = *v;
+						} else {
+							Log::new(LogType::Err, format!("依赖文件解析失败，build中print项 {} 的值不是布尔值。", key).as_str()).throw(23)
+						}
+					}
+					_ => Log::new(LogType::Err, format!("依赖文件解析失败，build中print项包含了未知的键 {}。", key).as_str()).throw(23)
+				}
+			}
+		} else {
+
+		}
 		if let Some(target) = table.get("target").and_then(Value::as_str) {
 			if target == "Lib" {
 				build.target = Target::Lib;
@@ -175,21 +200,29 @@ pub fn parser_config(content: String) -> ProjectConfig {
 
 /// ## 项目配置（TOML文件）
 pub struct ProjectConfig {
-	project: Project,
-	build: Build,
+	pub project: Project,
+	pub build: Build,
 	// 依赖项：
 	// Hash Map
 	// String      依赖库名称
 	// Vec(String) 包含的依赖模块路径
-	dependencies: Vec<Dependency>,
+	pub dependencies: Vec<Dependency>,
 }
 
 #[derive(Default)]
 pub struct Build {
 	// 路径
-	path: String,
+	pub path: String,
+	// 输出提示
+	pub print: Print,
 	// 构建目标
-	target: Target,
+	pub target: Target,
+}
+
+#[derive(Default)]
+pub struct Print {
+	pub file_ok: bool,
+	pub warn: bool,
 }
 
 #[derive(Default)]
@@ -202,20 +235,20 @@ pub enum Target {
 #[derive(Default)]
 pub struct Project {
 	// 项目名称
-	name: String,
+	pub name: String,
 	// 项目版本
-	version: String,
+	pub version: String,
 	// SDK版本
-	sdk_edition: String,
+	pub sdk_edition: String,
 	// 作者
-	authors: Vec<String>,
+	pub authors: Vec<String>,
 }
 
 #[derive(Default)]
 pub struct Dependency {
-	name: String,
-	version: String,
-	include: DependencyType,
+	pub name: String,
+	pub version: String,
+	pub include: DependencyType,
 }
 
 #[derive(Default)]

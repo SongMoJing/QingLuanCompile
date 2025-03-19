@@ -8,6 +8,7 @@ authors = [
 
 [build]
 path = "/target"
+print = { file_ok = true, warn = true }
 target = "App"
 
 [dependencies]

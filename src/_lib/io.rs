@@ -17,23 +17,20 @@ impl FileWrapper {
 		Self {
 			works: file.is_ok(),
 			path: (&path).to_string(),
-			file: {
-				Some(io::BufReader::new({
-					match file {
-						Ok(file) => file,
-						Err(_) => return Self {
-							works: false,
-							path,
-							file: None,
-						},
-					}
-				}))
+			file: Some(io::BufReader::new(match file {
+				Ok(file) => file,
+				Err(_) => return Self {
+					works: false,
+					path,
+					file: None,
+				},
 			}
+			)),
 		}
 	}
 
 	/// ## 对象正常
-	pub fn works(&mut self) -> bool {
+	pub fn works(&self) -> bool {
 		self.works
 	}
 
@@ -61,12 +58,13 @@ pub enum Char {
 	Char(char),
 	EndLine,
 	EndFile,
+	ErrFile,
 }
 
 pub struct Cursor {
 	num_line: usize,
 	num_column: usize,
-	content: FileWrapper,
+	file_wrapper: FileWrapper,
 	line: String,
 	point: char,
 }
@@ -74,7 +72,7 @@ pub struct Cursor {
 impl Cursor {
 	pub fn new(file: FileWrapper) -> Self {
 		Cursor {
-			content: file,
+			file_wrapper: file,
 			num_line: 0,
 			num_column: 0,
 			line: String::new(),
@@ -82,28 +80,48 @@ impl Cursor {
 		}
 	}
 
-	/// ## 读取下一个字符
-	/// return char
-	pub fn next(&mut self) -> Char {
-		if self.num_column >= self.line.len() {
-			return if let Some(i) = self.content.next() {
-				if let Ok(i) = i {
-					self.num_line += 1;
-					self.num_column = 0;
-					self.line = i;
-					self.point = '\u{0}';
-					Char::EndLine
-				} else {
-					Char::EndFile
-				}
+	pub fn peek(&self) -> Char {
+		if self.file_wrapper.works() {
+			if self.num_column < self.line.len() {
+				Char::Char(self.line.chars().nth(self.num_column).unwrap_or('\u{0}'))
 			} else {
-				Char::EndFile
+				Char::EndLine
 			}
 		} else {
-			self.point = self.line.chars().nth(self.num_column - 1).unwrap();
-			self.num_column += 1;
+			Char::ErrFile
 		}
-		Char::Char(self.point)
+	}
+
+	pub fn next(&mut self) -> Char {
+		if self.file_wrapper.works() {
+			if self.num_column < self.line.len() {
+				self.point = self.line.chars().nth(self.num_column).unwrap_or('\u{0}');
+				self.num_column += 1;
+				Char::Char(self.point)
+			} else {
+				match self.file_wrapper.next() {
+					Some(Ok(line)) => {
+						self.line = line;
+						self.num_line += 1;
+						self.num_column = 0;
+						self.point = '\u{0}';
+						Char::EndLine
+					}
+					Some(Err(e)) => {
+						Char::ErrFile
+					}
+					None => {
+						Char::EndFile
+					}
+				}
+			}
+		} else {
+			Char::ErrFile
+		}
+	}
+
+	pub fn get_file(&self) -> &FileWrapper {
+		&self.file_wrapper
 	}
 
 	/// ## 获取当前位置
@@ -111,12 +129,29 @@ impl Cursor {
 	pub fn get_position(&self) -> (usize, usize, char) {
 		(self.num_line, self.num_column, self.point)
 	}
+
+	pub fn get_pointing(&self) -> CursorPointing {
+		CursorPointing {
+			num_line: self.num_line,
+			num_column: self.num_column,
+			line: self.line.clone()
+		}
+	}
+}
+
+pub struct CursorPointing {
+	/// 行号
+	pub num_line: usize,
+	/// 列号
+	pub num_column: usize,
+	/// 当前行
+	pub line: String,
 }
 
 /// # 日志
 pub struct Log {
 	_type: ColoredString,
-	_msg: String
+	_msg: String,
 }
 
 pub enum LogType {

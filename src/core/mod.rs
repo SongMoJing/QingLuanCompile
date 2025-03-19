@@ -1,9 +1,3 @@
-#![allow(dead_code)]
-
-// use serde::Deserialize;
-
-pub(crate) mod run;
-mod lava_river;
-
-
-
+pub mod ast;
+pub mod lexer;
+pub mod parser;

@@ -39,16 +39,3 @@ fn get_char() -> char {
 	io::stdin().lock().read_exact(&mut buf).unwrap();
 	buf[0] as _
 }
-
-/// ## 系统提示
-/// 1. `please` 等待用户回车
-pub(crate) fn system(token: &str) {
-	match token {
-		"please" => {
-			print!("Enter to continue...");
-			io::stdout().flush().expect("Err: Refresh failed");
-			get_char();
-		}
-		_ => {}
-	}
-}
