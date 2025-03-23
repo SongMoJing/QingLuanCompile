@@ -34,8 +34,8 @@ pub fn parser_qls(dir: DirEntry) {
 	// 词法分析
 	let mut lexer = lexer::Lexer::new(cursor);
 	let tokens = lexer.tokenize();
-	// 语法分析
 	println!("{:?}", tokens);
+	// 语法分析
 	// let mut parser = parser::Parser::new(tokens);
 	// let ast = parser.parse().expect("Parsing failed");
 }
