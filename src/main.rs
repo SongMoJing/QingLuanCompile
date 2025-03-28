@@ -31,6 +31,7 @@ static PROJECT_ROOT: OnceLock<String> = OnceLock::new();
 fn main() {
 	#[cfg(windows)]
 	enable_ansi_support();
+	// CLI输出编码设置为Unicode
 	// 获得参数
 	let args = get_args();
 	// 检查开始方式

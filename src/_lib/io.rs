@@ -107,7 +107,7 @@ impl Cursor {
 						self.point = '\u{0}';
 						Char::EndLine
 					}
-					Some(Err(e)) => {
+					Some(Err(_)) => {
 						Char::ErrFile
 					}
 					None => {

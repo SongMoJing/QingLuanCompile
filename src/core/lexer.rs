@@ -1,42 +1,60 @@
-use std::str::FromStr;
+use crate::_lib::io::{Char, Cursor, CursorPointing, Log, LogType};
+use crate::parser::qls::{RecordStruct, State, Struct, Value};
 use colored::Colorize;
-use crate::_lib::io::{Char, Cursor, Log, LogType};
-use crate::parser::qls::{Record, RecordStruct, State, Struct};
-use crate::PROJECT_CONFIG;
+use std::str::FromStr;
 
 pub struct Lexer {
 	// 光标
 	cursor: Cursor,
-	// 记录错误和警告
-	record: Record,
 	// 状态机
 	state: State,
+}
+
+pub enum Err {
+	EndFile,
 }
 
 impl Lexer {
 	pub fn new(cursor: Cursor) -> Self {
 		Self {
 			cursor,
-			record: Default::default(),
 			state: State {
 				located: Struct::External,
 			},
 		}
 	}
-
+	/// 报错
+	fn throw_error(&self, message: String, note: Option<String>, len: usize, point: CursorPointing) -> ! {
+		let record = RecordStruct::new(point, len, message, note).get();
+		Log::new(LogType::Err, format!("{}\n{}{}\n{}",
+		                               "编译时检查到词法错误：".bright_white(),
+		                               "位于 ",
+		                               self.cursor.get_file().path().green(),
+		                               record.as_str()).as_str()).throw(41);
+	}
 	/// 核心词法分析逻辑
-	pub fn tokenize(&mut self) -> Vec<Token> {
+	pub fn next(&mut self) -> Result<Vec<Token>, Err> {
 		let mut tokens: Vec<Token> = Vec::new();
-		while let res = self.cursor.next() {
-			match res {
+		loop {
+			match self.cursor.next() {
 				Char::Char(c) => {
 					match self.state.located {
 						Struct::LineComment => continue,
+						Struct::BlockComment => {
+							if '*' == c {
+								if let Char::Char('/') = self.cursor.peek() {
+									self.state.located = Struct::External;
+									self.cursor.next();
+									continue;
+								}
+							}
+							continue;
+						}
 						_ => {}
 					}
 					match c {
 						// 跳过空白
-						' ' | '\t' | '\n' | '\r' => continue,
+						' ' | '\t' | '\n' | '\r' | '\0' => continue,
 						// 数字解析（支持整数和小数）
 						'0'..='9' => {
 							tokens.push(self.read_number(c));
@@ -46,33 +64,231 @@ impl Lexer {
 							tokens.push(self.read_identifier(c));
 						}
 						// 符号处理
-						'+' => tokens.push(Token::Operator(Operator::Plus)),
-						'-' => tokens.push(Token::Operator(Operator::Minus)),
-						'*' => tokens.push(Token::Operator(Operator::Star)),
+						'+' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::PlusEqual));
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Plus));
+						}
+						'-' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::MinusEqual));
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Minus));
+						}
+						'*' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::StarEqual));
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Star));
+						}
 						'/' => {
 							if let Char::Char('/') = self.cursor.peek() {
 								self.state.located = Struct::LineComment;
 								self.cursor.next();
+							} else if let Char::Char('*') = self.cursor.peek() {
+								self.state.located = Struct::BlockComment;
+								self.cursor.next();
+							} else if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::SlashEqual));
 							} else {
 								tokens.push(Token::Operator(Operator::Slash));
 							}
 						}
+						'%' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::PercentEqual));
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Percent));
+						}
+						// 对称符号
 						'(' => tokens.push(Token::StructFlag(StructFlag::OpenParen)),
-						'{' => tokens.push(Token::StructFlag(StructFlag::OpenBrace)),
+						'{' => {
+							tokens.push(Token::StructFlag(StructFlag::OpenBrace));
+							return Ok(tokens);
+						}
+						'<' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::LessEqual));
+								continue;
+							}
+							tokens.push(Token::Temp(Temp::OpenAngle))
+						}
+						'[' => tokens.push(Token::StructFlag(StructFlag::OpenBracket)),
 						')' => tokens.push(Token::StructFlag(StructFlag::CloseParen)),
-						'}' => tokens.push(Token::StructFlag(StructFlag::CloseBrace)),
-						'=' => tokens.push(Token::Eq),
-						';' => tokens.push(Token::EndStatement),
+						'}' => {
+							tokens.push(Token::StructFlag(StructFlag::CloseBrace));
+							return Ok(tokens);
+						}
+						'>' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::GreaterEqual));
+								continue;
+							}
+							tokens.push(Token::Temp(Temp::CloseAngle))
+						}
+						']' => tokens.push(Token::StructFlag(StructFlag::CloseBracket)),
+						'"' | '\'' | '`' => {
+							let mut s = String::new();
+							loop {
+								if let Char::Char(char) = self.cursor.next() {
+									match char {
+										'\0' => {}
+										'\'' => {
+											if c == '\'' {
+												tokens.push(Token::Value(Value::Char(s.chars().next().unwrap_or('\0'))));
+												break;
+											} else {
+												s.push('\'');
+											}
+										}
+										'"' => {
+											if c == '"' {
+												tokens.push(Token::Value(Value::String(s)));
+												break;
+											} else {
+												s.push('"');
+											}
+										}
+										'`' => {
+											if c == '`' {
+												tokens.push(Token::Value(Value::String(s)));
+												break;
+											} else {
+												s.push('`');
+											}
+										}
+										'\\' => {
+											if let Char::Char(c) = self.cursor.next() {
+												match c {
+													'\\' => {
+														self.cursor.next();
+														s.push('\\');
+													}
+													'"' => {
+														self.cursor.next();
+														s.push('"');
+													}
+													'n' => {
+														self.cursor.next();
+														s.push('\n');
+													}
+													'r' => {
+														self.cursor.next();
+														s.push('\r');
+													}
+													't' => {
+														self.cursor.next();
+														s.push('\t');
+													}
+													'u' => {
+														if let Char::Char('{') = self.cursor.next() {
+															let mut temp = String::new();
+															while let Char::Char(c) = self.cursor.next() {
+																match c {
+																	'}' => {
+																		if let Ok(num) = u32::from_str_radix(&temp, 16) {
+																			s.push(char::from_u32(num).unwrap());
+																		} else {
+																			self.throw_error("Unicode十六进制数解析失败".to_string(), None, 1, self.cursor.get_pointing());
+																		}
+																		break;
+																	}
+																	'0'..='9' | 'a'..='f' | 'A'..='F' => {
+																		temp.push(c);
+																	}
+																	_ => {
+																		self.throw_error(format!("'{}'不是十六进制字符", c), None, 1, self.cursor.get_pointing());
+																	}
+																}
+															}
+														} else {
+															self.throw_error("'\\u'之后应该有大括号包裹的四位Unicode十六进制数".to_string(), None, 1, self.cursor.get_pointing());
+														}
+													}
+													o => {
+														self.throw_error(format!("未知的'\\{}'", o).to_string(), None, 1, self.cursor.get_pointing());
+													}
+												}
+											}
+										}
+										_ => {
+											s.push(char);
+										}
+									}
+								} else if let Char::EndLine = self.cursor.next() {
+									if c == '`' {
+										s.push_str("\n\r");
+										continue;
+									}
+								}
+							}
+						}
+						// 其他符号
+						':' => {
+							if let Char::Char(':') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::StructFlag(StructFlag::Index));
+							} else {
+								tokens.push(Token::StructFlag(StructFlag::Colon));
+							}
+						}
+						'&' => {
+							if let Char::Char('&') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::And));
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Reference));
+						}
+						'|' => {
+							if let Char::Char('|') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::Or));
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Vertical));
+						}
+						'@' => tokens.push(Token::Operator(Operator::AtStruct)),
+						'$' => tokens.push(Token::Operator(Operator::GetStruct)),
+						'?' => tokens.push(Token::Operator(Operator::Exist)),
+						'!' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								self.cursor.next();
+								tokens.push(Token::Operator(Operator::NotIs));
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Not));
+						}
+						'.' => tokens.push(Token::StructFlag(StructFlag::Dot)),
+						'=' => {
+							if let Char::Char('=') = self.cursor.peek() {
+								tokens.push(Token::Operator(Operator::Is));
+								self.cursor.next();
+								continue;
+							}
+							tokens.push(Token::Operator(Operator::Move))
+						}
+						',' => tokens.push(Token::StructFlag(StructFlag::Comma)),
+						';' => {
+							tokens.push(Token::EndStatement);
+							return Ok(tokens);
+						}
 
 						// 处理未知字符
 						_ => {
-							let point = self.cursor.get_pointing();
-							let record = RecordStruct::new(point, 1, "意外的字符".to_string(), None).get();
-							Log::new(LogType::Err, format!("{}\n{}{}\n{}",
-														   "编译时检查到词法错误：".bright_white(),
-														   "位于 ",
-														   self.cursor.get_file().path().green(),
-														   record.as_str()).as_str()).throw(41);
+							self.throw_error(format!("未知字符 '{}'", c), None, 1, self.cursor.get_pointing())
 						}
 					}
 				}
@@ -82,87 +298,158 @@ impl Lexer {
 					}
 				}
 				Char::EndFile => {
-					if let Some(conf) = PROJECT_CONFIG.get() {
-						if conf.build.print.warn {
-							if self.record.warn.len() > 0 {
-								Log::new(LogType::Info("文件编译结束".yellow()), self.cursor.get_file().path().as_str()).print();
-								println!("\t发现{}个问题：", self.record.warn.len());
-								break;
-							} else {
-								Log::new(LogType::Info("文件编译结束".green()), self.cursor.get_file().path().as_str()).print();
-								break;
-							}
-						}
-					}
+					Log::new(LogType::Info("文件词法分析完成".green()), self.cursor.get_file().path().as_str()).print();
+					return if tokens.len() == 0 {
+						Result::Err(Err::EndFile)
+					} else {
+						Ok(tokens)
+					};
 				}
 				Char::ErrFile => {
-					Log::new(LogType::Err, "文件读取错误").throw(20);
+					Log::new(LogType::Err, format!("文件 {} 读取错误", self.cursor.get_file().path()).as_str()).throw(20);
 				}
 			}
 		}
-		tokens
 	}
 	/// 读取连续数字字符
-	fn read_number(&mut self, first: char) -> Token::Value {
-		fn to_number(s: String) -> Option<Token::Value> {
-			let sanitized = s.replace('_', "");
-			let (radix, parts) = if sanitized.len() >= 2 {
-				match &sanitized[..2] {
-					"0b" | "0B" => (2, &sanitized[2..]),
-					"0o" | "0O" => (8, &sanitized[2..]),
-					"0x" | "0X" => (16, &sanitized[2..]),
-					_ => (10, &sanitized[..]),
-				}
-			} else {
-				(10, &sanitized[..])
-			};
+	fn read_number(&mut self, first: char) -> Token {
+		fn to_number(s: &str, radix: u32) -> Result<Value, String> {
 			match radix {
-				2 => {
-					// if parts.contains('-')
-					Some(Token::Value(Value::NumIsize(u64::from_str_radix(parts, radix)?)))
+				2 | 8 | 16 => {
+					u64::from_str_radix(s, radix)
+						.map(|n| Value::NumIsize(n as isize))
+						.map_err(|_| format!("无法将 '{}' 解析为 {} 进制数", s, radix))
 				}
-				8 => Some(Token::Value(Value::Int(u64::from_str_radix(parts, radix)?))),
+				10 => {
+					f64::from_str(s)
+						.map_err(|_| format!("无法将 '{}' 解析为浮点数", s))
+						.and_then(|n| {
+							if n.fract() == 0.0 && n >= isize::MIN as f64 && n <= isize::MAX as f64 {
+								Ok(Value::NumIsize(n as isize))
+							} else {
+								Err(format!("'{}' 超出了 isize 的范围", s))
+							}
+						})
+				}
+				_ => Err(format!("不支持 {} 进制", radix)),
 			}
 		}
 
 		let mut s = String::new();
-		s.push(first);
+		let start = self.cursor.get_pointing();
+		let mut base = 10;
 		if first == '0' {
 			if let Char::Char(c) = self.cursor.peek() {
 				match c {
-					'b' | 'B' => {}
-					'o' | 'O' => {}
-					'x' | 'X' => {}
-					_ => {}
+					'b' | 'B' => base = 2,
+					'o' | 'O' => base = 8,
+					'x' | 'X' => base = 16,
+					_ => s.push(first)
 				}
 			}
+			if base != 10 {
+				self.cursor.next();
+			}
 		}
+		let mut result = true;
+		let mut message = String::from("意外的变故，无法匹配为数字");
 		while let Char::Char(c) = self.cursor.peek() {
 			match c {
-				'0'..='9' | 'a'..='f' | 'A'..='F' => {
-					self.cursor.next();
-					s.push(c)
+				'0' | '1' => {
+					if base >= 2 {
+						self.cursor.next();
+						s.push(c)
+					} else {
+						message = format!("'{}'超出了{}进制的最大数字，应该进位", c, base);
+						result = false;
+						break;
+					}
 				}
-				'x' | 'X' | 'o' | 'O' | 'b' | 'B' => {
-
+				'2'..='7' => {
+					if base >= 8 {
+						self.cursor.next();
+						s.push(c)
+					} else {
+						message = format!("'{}'超出了{}进制的最大数字，应该进位", c, base);
+						result = false;
+						break;
+					}
+				}
+				'8' | '9' => {
+					if base >= 10 {
+						self.cursor.next();
+						s.push(c)
+					} else {
+						message = format!("'{}'超出了{}进制的最大数字，应该进位", c, base);
+						result = false;
+						break;
+					}
+				}
+				'a'..='d' | 'A'..='D' | 'f' | 'F' => {
+					if base >= 16 {
+						self.cursor.next();
+						s.push(c)
+					} else {
+						message = format!("'{}'超出了{}进制的最大数字，应该进位", c, base);
+						result = false;
+						break;
+					}
+				}
+				'e' | 'E' => {
+					if base >= 15 || base == 10 {
+						self.cursor.next();
+						s.push(c)
+					} else {
+						if base < 15 {
+							message = format!("'{}'超出了{}进制的最大数字，应该进位", c, base);
+						} else {
+							message = "除十进制外，其他进制不支持指数".to_string();
+						}
+						result = false;
+						break;
+					}
 				}
 				'_' => {
 					self.cursor.next();
 				}
-				_ => break,
+				'.' => {
+					if base == 10 {
+						self.cursor.next();
+						s.push(c)
+					} else {
+						message = "除十进制外，其他进制不支持小数点".to_string();
+						result = false;
+						break;
+					}
+				}
+				'-' => {
+					if base == 10 {
+						self.cursor.next();
+						s.push(c)
+					} else {
+						message = "除十进制外，其他进制不支持减号".to_string();
+						result = false;
+						break;
+					}
+				}
+				_ => {
+					break;
+				}
 			}
 		}
-		to_number(s).unwrap_or_else(|_| {
-			let mut point = self.cursor.get_pointing();
-			point.num_column += 1;
-			let record = RecordStruct::new(point, 1, "无法解析意外的字符为数字".to_string(), None).get();
-			Log::new(LogType::Err, format!("{}\n{}{}\n{}",
-										   "编译时检查到词法错误：".bright_white(),
-										   "位于 ",
-										   self.cursor.get_file().path().green(),
-										   record.as_str()).as_str()).throw(41);
-		})
+		let end = self.cursor.get_pointing();
+		if result {
+			match to_number(s.as_str(), base) {
+				Ok(value) => Token::Value(value),
+				Err(err_msg) => {
+					self.throw_error(message, Some(err_msg), end.num_column - start.num_column, start);
+				}
+			}
+		} else {
+			self.throw_error(message, None, end.num_column - start.num_column, start);
+		}
 	}
+
 	/// 读取标识符
 	fn read_identifier(&mut self, first: char) -> Token {
 		let mut s = String::new();
@@ -183,24 +470,30 @@ impl Lexer {
 	}
 }
 
+/// 词法分析结果
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
 	/// 字面量
 	Value(Value),
-	/// 函数调用
-	Call(Token::Ident, Vec<Token>),
 	/// 标识符
 	Ident(String),
-	/// 运算符
+	/// 操作符
 	Operator(Operator),
 	/// 结构分隔符
 	StructFlag(StructFlag),
-	/// =
-	Eq,
+	/// 暂定标记
+	Temp(Temp),
 	/// 语句结束标记
 	EndStatement,
 }
-
+/// 暂定标记
+#[derive(Debug, Clone, PartialEq)]
+pub enum Temp {
+	/// <
+	OpenAngle,
+	/// >
+	CloseAngle,
+}
 /// 结构标识符，括号
 #[derive(Debug, Clone, PartialEq)]
 pub enum StructFlag {
@@ -212,49 +505,70 @@ pub enum StructFlag {
 	OpenBrace,
 	/// }
 	CloseBrace,
-	/// <
-	OpenAngle,
-	/// >
-	CloseAngle,
+	/// [
+	OpenBracket,
+	/// ]
+	CloseBracket,
+	/// ::
+	Index,
+	/// :
+	Colon,
+	/// ,
+	Comma,
+	/// .
+	Dot,
 }
-/// 运算符
+/// 操作符
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operator {
 	/// +
 	Plus,
+	/// +=
+	PlusEqual,
 	/// -
 	Minus,
+	/// -=
+	MinusEqual,
 	/// *
 	Star,
+	/// *=
+	StarEqual,
 	/// /
 	Slash,
+	/// /=
+	SlashEqual,
 	/// %
 	Percent,
-	/// &
+	/// %=
+	PercentEqual,
+	/// = 移动
+	Move,
+	/// & 引用
+	Reference,
+	/// @ 结构引用
+	AtStruct,
+	/// $ 要求结构应用
+	GetStruct,
+	/// | 竖线
+	Vertical,
+	/// &&
 	And,
-	/// |
+	/// ||
 	Or,
 	/// !
 	Not,
-}
-/// 字面量
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-	NumI8(i8),
-	NumI16(i16),
-	NumI32(i32),
-	NumI64(i64),
-	NumI128(i128),
-	NumIsize(isize),
-	NumU8(u8),
-	NumU16(u16),
-	NumU32(u32),
-	NumU64(u64),
-	NumU128(u128),
-	NumUsize(usize),
-	NumF32(f32),
-	NumF64(f64),
-	String(String),
-	Char(char),
-	Boolean(bool),
+	/// !=
+	NotIs,
+	/// ==
+	Is,
+	/// >
+	Greater,
+	/// <
+	Less,
+	/// >=
+	GreaterEqual,
+	/// <=
+	LessEqual,
+	/// ? 判断有效
+	Exist,
 }
