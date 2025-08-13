@@ -7,9 +7,11 @@ authors = [
 ]
 
 [build]
-path = "/target"
-print = { file_ok = true, warn = true }
+# package=["Debug", "Release"]
+package = "Debug"
+# target=["App", "Lib"]
 target = "App"
 
-[dependencies]
-#ooo = { version = "0.1.0", include = ["feature0-1", "feature0-2"] }
+#[dependencies]
+#ooo = { version = "0.1.0" }
+#xxx = { version = "0.1.0" }

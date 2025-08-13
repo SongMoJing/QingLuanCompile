@@ -1,13 +1,17 @@
-use crate::_lib::io::{Log, LogType};
-use crate::parser::toml::ProjectConfig;
-use colored::*;
+use std::fs;
 use std::io::ErrorKind;
+use std::path::Path;
 use std::process::exit;
 use std::sync::OnceLock;
 
+use colored::*;
+
+use crate::_lib::io::{Log, LogType};
+use crate::parser::qln::lexer::{ErrorReporter, Lexer};
+use crate::parser::toml::{Config, load_config};
+
 mod _lib;
 mod parser;
-mod core;
 
 /// ## 程序版本
 const VERSION: &str = "t.0.1";
@@ -21,54 +25,69 @@ const PACKAGE_MANAGER: &str = "QingLuanPackageManager";
 /// ## 可接受的参数列表
 struct Args {
 	project_path: Option<String>,
-	_help: bool,
-	_compile: &'static str,
 }
 
-static PROJECT_CONFIG: OnceLock<ProjectConfig> = OnceLock::new();
-static PROJECT_ROOT: OnceLock<String> = OnceLock::new();
+static PROJECT_CONFIG: OnceLock<Config> = OnceLock::new();
 
 fn main() {
+	// CLI输出编码设置为Unicode
 	#[cfg(windows)]
 	enable_ansi_support();
-	// CLI输出编码设置为Unicode
 	// 获得参数
 	let args = get_args();
 	// 检查开始方式
 	if let Some(root_path) = &args.project_path {
 		// 查看projectPath是否存在
-		std::fs::metadata(root_path).unwrap_or_else(|e| match e.kind() {
-			ErrorKind::NotFound => {
-				Log::new(LogType::Err, format!("路径 {} 不存在。", root_path).as_str()).throw(21);
-			}
-			ErrorKind::PermissionDenied => {
-				Log::new(LogType::Err, format!("路径 {} 读取失败，请检查文件权限。", root_path).as_str()).throw(22);
-			}
-			_ => {
-				Log::new(LogType::Err, format!("路径 {} 产生未知错误。", root_path).as_str()).throw(20);
-			}
+		fs::metadata(root_path).unwrap_or_else(|e| {
+			let log = Log::creat(e.kind(), root_path.as_str());
+			log.throw(match e.kind() {
+				ErrorKind::NotFound => { 21 }
+				ErrorKind::PermissionDenied => { 22 }
+				_ => { 20 }
+			});
 		});
 		// 读取QingLuan.toml文件
 		let mut toml = _lib::io::FileWrapper::new(format!("{root_path}/QingLuan.toml"));
 		// 读取文件内容
-		let content: String = toml.read_to_string().unwrap_or_else(|e| match e.kind() {
-			ErrorKind::NotFound => {
-				Log::new(LogType::Err, "QingLuan.toml 文件读取失败，请检查文件是否存在。").throw(21);
-			}
-			ErrorKind::PermissionDenied => {
-				Log::new(LogType::Err, "QingLuan.toml 文件读取失败，请检查文件权限。").throw(22);
-			}
-			_ => {
-				Log::new(LogType::Err, "QingLuan.toml 产生未知错误。").throw(20);
-			}
-		});
 		// 解析项目配置并加入全局变量
-		PROJECT_CONFIG.get_or_init(|| parser::toml::parser_config(content));
-		PROJECT_ROOT.get_or_init(|| root_path.replace("\\", "/"));
-		Log::new(LogType::Info("编译".green()), "项目开始解析").print();
-		parser::start();
+		PROJECT_CONFIG.get_or_init(|| load_config(
+			toml.read_to_string().unwrap_or_else(|e| {
+				let log = Log::creat(e.kind(), toml.path().as_str());
+				log.throw(match e.kind() {
+					ErrorKind::NotFound => { 21 }
+					ErrorKind::PermissionDenied => { 22 }
+					_ => { 20 }
+				});
+			}))
+			.unwrap_or_else(|e| {
+				let log = Log::creat(e.kind(), format!("{}: \n{}", toml.path(), e).as_str());
+				log.throw(match e.kind() {
+					ErrorKind::NotFound => { 21 }
+					ErrorKind::PermissionDenied => { 22 }
+					_ => { 20 }
+				});
+			}));
+
+		let path = Path::new("D:\\Program\\Rust\\QingLuanCompile\\Note\\project\\src\\main.qln");
+		let mut lexer = Lexer::new(path);
+		let (tokens, errors) = lexer.expect("REASON").tokenize();
+
+		// 报告错误
+		if !errors.is_empty() {
+			let source = fs::read_to_string(path).expect("无法读取文件");
+			let mut reporter = ErrorReporter::new(&source, path);
+			for (error, span) in errors {
+				reporter.add_error(error.clone(), span);
+			}
+			reporter.report();
+			Log::new(LogType::Err, "编译因错误而终止").throw(1);
+		} else {
+			for token in tokens {
+				println!("{:?}", token);
+			}
+		}
 	} else {
-		Log::new(LogType::Err, "缺少项目路径。").throw(10);
+		Log::new(LogType::Err, "缺少项目路径").throw(10);
 	}
 }
 
@@ -82,8 +101,6 @@ fn enable_ansi_support() {
 /// scriptPath. 路径
 fn get_args() -> Args {
 	let mut res: Args = Args {
-		_help: false,
-		_compile: "debug",
 		project_path: None,
 	};
 
@@ -95,10 +112,9 @@ fn get_args() -> Args {
 		println!("{}", "用法：".yellow());
 		println!("   QingLuanCompile [参数] [选项]");
 		println!("{}", "参数：".yellow());
-		println!("   [必填] <脚本路径> 填入用于解释的脚本路径");
+		println!("   [必填] <路径> 项目根路径");
 		println!("{}", "选项：".yellow());
 		println!("   <-h | --help>     获取帮助");
-		println!("   <-c | --compile>  打包方式 可选：debug|release");
 		exit(0);
 	}
 
@@ -115,23 +131,8 @@ fn get_args() -> Args {
 			match arg.as_str() {
 				// 显示帮助
 				"-h" | "--help" => {
-					res._help = true;
 					help();
-				}
-				// 编译方式
-				"-c" | "--compile" => {
-					if let Some(path) = args.next() {
-						match path.as_str() {
-							"debug" => res._compile = "debug",
-							"release" => res._compile = "release",
-							_ => {
-								Log::new(LogType::Err, format!("未知的编译方式 {}。", path).as_str()).throw(12);
-							}
-						}
-					} else {
-						res._compile = "debug";
-						Log::new(LogType::Warn, "缺少编译方式，默认为Debug").print();
-					}
+					exit(0);
 				}
 				// 未知目标
 				_ => {
@@ -139,7 +140,7 @@ fn get_args() -> Args {
 				}
 			}
 		} else {
-			res.project_path = Some(arg);
+			res.project_path = Some(arg.replace("\\", "/"));
 		}
 	}
 	res

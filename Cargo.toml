@@ -10,3 +10,4 @@ authors = [
 colored = "3.0.0"
 toml = "0.8.20"
 unicode-width = "0.2.0"
+serde = { version = "1.0.218", features = ["derive"] }
