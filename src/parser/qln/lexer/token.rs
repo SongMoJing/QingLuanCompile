@@ -14,88 +14,87 @@ pub struct Span {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
-	// 关键字
+	/// 关键字
 	Key(Key),
-	// 标识符
+	/// 标识符
 	Ident(String),
-	// 字面量
+	/// 字面量
 	String(Vec<CharacterString>),
 	Char(char),
 	Bool(bool),
 	NumInt(i64),
 	NumFloat(f64),
-	// 符号
-	// (
+	/// `(`
 	LParen,
-	// )
+	/// `)`
 	RParen,
-	// {
+	/// `{`
 	LBrace,
-	// }
+	/// `}`
 	RBrace,
-	// [
+	/// `[`
 	LBracket,
-	// ]
+	/// `]`
 	RBracket,
-	// ;
+	/// `;`
 	Semicolon,
-	// :
+	/// `:`
 	Colon,
-	// ,
+	/// `,`
 	Comma,
-	// .
+	/// `.`
 	Dot,
-	// +
+	/// `+`
 	Plus,
-	// -
+	/// `-`
 	Minus,
-	// *
+	/// `*`
 	Star,
-	// /
+	/// `/`
 	Slash,
-	// %
+	/// `%`
 	Percent,
-	// &
+	/// `&`
 	Ampersand,
-	// |
+	/// `|`
 	Pipe,
-	// ^
+	/// `^`
 	Caret,
-	// !
+	/// `!`
 	Exclamation,
-	// ?
+	/// `?`
 	Question,
-	// =
+	/// `=`
 	Assign,
-	// ==
+	/// `==`
 	Eq,
-	// <
+	/// `<`
 	Lt,
-	// >
+	/// `>`
 	Gt,
-	// ->
+	/// `->`
 	Arrow,
-	// !=
+	/// `!=`
 	Ne,
-	// <=
+	/// `<=`
 	Le,
-	// >=
+	/// `>=`
 	Ge,
-	// &&
+	/// `&&`
 	And,
-	// ||
+	/// `||`
 	Or,
-	// +=
+	/// `+=`
 	PlusAssign,
-	// -=
+	/// `-=`
 	MinusAssign,
-	// *=
+	/// `*=`
 	StarAssign,
-	// /=
+	/// `/=`
 	SlashAssign,
-	// %=
+	/// `%=`
 	ModAssign,
-	// 文件结束
+	/// 文件结束
 	EOF,
 }
 

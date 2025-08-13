@@ -7,7 +7,10 @@ use std::sync::OnceLock;
 use colored::*;
 
 use crate::_lib::io::{Log, LogType};
-use crate::parser::qln::lexer::{ErrorReporter, Lexer};
+use crate::parser::qln::{
+	lexer::{ErrorReporter, Lexer},
+	parsing,
+};
 use crate::parser::toml::{Config, load_config};
 
 mod _lib;
@@ -69,7 +72,7 @@ fn main() {
 			}));
 
 		let path = Path::new("D:\\Program\\Rust\\QingLuanCompile\\Note\\project\\src\\main.qln");
-		let mut lexer = Lexer::new(path);
+		let lexer = Lexer::new(path);
 		let (tokens, errors) = lexer.expect("REASON").tokenize();
 
 		// 报告错误
@@ -83,8 +86,11 @@ fn main() {
 			Log::new(LogType::Err, "编译因错误而终止").throw(1);
 		} else {
 			for token in tokens {
-				println!("{:?}", token);
+				println!("{:?}\n\t{:?}", token.kind, token.span);
 			}
+			// let mut parser = Parser::new(tokens);
+			// let ast = parser.parse_expr();
+			// println!("{:?}", ast);
 		}
 	} else {
 		Log::new(LogType::Err, "缺少项目路径").throw(10);

@@ -1,4 +1,6 @@
 // 导入类型和标准库
-//import ql.std.console.out as io;
+// import ql.std.console.out as io.
+;->;0
+// io.print("静态${return 0b10}属\n性\u{0020}初始化.");
 
-io.print("静态${return 0x0001}属性\u{0020}初始化.");
+.

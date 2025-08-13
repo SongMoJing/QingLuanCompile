@@ -1,11 +1,9 @@
-use colored::{ColoredString, Colorize};
 use std::fs;
 use std::io;
 use std::io::{BufRead, ErrorKind};
-use std::path::Path;
 use std::process::exit;
-use crate::parser::qln::lexer::LexError;
-use crate::parser::qln::lexer::token::Span;
+
+use colored::{ColoredString, Colorize};
 
 /// # 文件读取器
 pub struct FileWrapper {
@@ -111,17 +109,26 @@ impl Cursor {
 		if self.file_wrapper.works() {
 			if self.byte_offset < self.line.len() {
 				// 获取当前字符及其字节长度
-				let s = std::str::from_utf8(&self.line[self.byte_offset..])
-					.unwrap_or("");
-				if let Some(c) = s.chars().next() {
+				let s = std::str::from_utf8(&self.line[self.byte_offset..]).unwrap_or("");
+				let option = s.chars().next();
+				if let Some(c) = option {
 					let char_len = c.len_utf8();
 					self.point = self.line[self.byte_offset];
 					self.byte_offset += char_len;
-					self.num_column += 1; // 字符位置+1
+					self.num_column += 1;
 					return Char::Char(c);
 				}
+				return self.next_line();
+			} else {
+				return self.next_line();
 			}
+		} else {
+			Char::ErrFile
+		}
+	}
 
+	fn next_line(&mut self) -> Char {
+		if self.file_wrapper.works() {
 			// 读取下一行
 			match self.file_wrapper.next() {
 				Some(Ok(line)) => {
@@ -158,6 +165,7 @@ impl Cursor {
 	}
 }
 
+#[derive(Debug)]
 pub struct CursorPointing {
 	/// 行号
 	pub num_line: usize,
