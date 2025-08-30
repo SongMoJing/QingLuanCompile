@@ -65,85 +65,56 @@ pub enum Char {
 pub struct Cursor {
 	num_line: usize,
 	num_column: usize,
-	// 当前字节偏移量
-	byte_offset: usize,
 	file_wrapper: FileWrapper,
-	// 改为字节数组
-	line: Vec<u8>,
-	// 改为u8
-	point: u8,
+	line: Vec<char>,
+	point: char,
 }
 
 impl Cursor {
-	pub fn new(file: FileWrapper) -> Self {
-		Cursor {
-			file_wrapper: file,
-			num_line: 0,
-			num_column: 0,
-			byte_offset: 0,
-			line: Vec::new(),
-			point: 0,
+	pub fn new(mut file: FileWrapper) -> Option<Self> {
+		if !file.works() {
+			return None;
 		}
-	}
-
-	pub fn peek(&self) -> Char {
-		if self.file_wrapper.works() {
-			if self.byte_offset < self.line.len() {
-				// 尝试解码UTF-8字符
-				let s = std::str::from_utf8(&self.line[self.byte_offset..])
-					.unwrap_or("");
-				if let Some(c) = s.chars().next() {
-					Char::Char(c)
-				} else {
-					Char::EndLine
-				}
-			} else {
-				Char::EndLine
-			}
-		} else {
-			Char::ErrFile
+		let option = file.next();
+		if let Some(Ok(line)) = option {
+			return Some(Cursor {
+				file_wrapper: file,
+				num_line: 1,
+				num_column: 0,
+				line: line.chars().collect::<Vec<_>>(),
+				point: 0 as char,
+			});
 		}
+		return None;
 	}
 
 	pub fn next(&mut self) -> Char {
-		if self.file_wrapper.works() {
-			if self.byte_offset < self.line.len() {
-				// 获取当前字符及其字节长度
-				let s = std::str::from_utf8(&self.line[self.byte_offset..]).unwrap_or("");
-				let option = s.chars().next();
-				if let Some(c) = option {
-					let char_len = c.len_utf8();
-					self.point = self.line[self.byte_offset];
-					self.byte_offset += char_len;
-					self.num_column += 1;
-					return Char::Char(c);
-				}
-				return self.next_line();
-			} else {
-				return self.next_line();
-			}
-		} else {
-			Char::ErrFile
+		if !self.file_wrapper.works() {
+			return Char::ErrFile;
 		}
-	}
-
-	fn next_line(&mut self) -> Char {
-		if self.file_wrapper.works() {
-			// 读取下一行
-			match self.file_wrapper.next() {
-				Some(Ok(line)) => {
-					self.line = line.into_bytes();
-					self.byte_offset = 0;
-					self.num_line += 1;
-					self.num_column = 0;
-					Char::EndLine
-				}
-				Some(Err(_)) => Char::ErrFile,
-				None => Char::EndFile,
-			}
-		} else {
-			Char::ErrFile
+		if self.num_column < self.line.len() {
+			self.point = self.line[self.num_column];
+			self.num_column += 1;
+			return Char::Char(self.point);
 		}
+		if self.num_column == self.line.len() {
+			self.point = 0 as char;
+			self.num_column += 1;
+			return Char::EndLine;
+		}
+		let option = self.file_wrapper.next();
+		if let Some(Ok(line)) = option {
+			self.line = line.chars().collect::<Vec<_>>();
+			self.num_line += 1;
+			self.num_column = 0;
+			if self.line.len() == 0 {
+				return self.next();
+			}
+			self.point = self.line[self.num_column];
+			self.num_column += 1;
+			return Char::Char(self.point);
+		}
+		return Char::EndFile;
 	}
 
 	pub fn get_file(&self) -> &FileWrapper {
@@ -152,7 +123,7 @@ impl Cursor {
 
 	/// ## 获取当前位置
 	/// return x, y, char
-	pub fn get_position(&self) -> (usize, usize, u8) {
+	pub fn get_position(&self) -> (usize, usize, char) {
 		(self.num_line, self.num_column, self.point)
 	}
 
@@ -172,7 +143,7 @@ pub struct CursorPointing {
 	/// 列号
 	pub num_column: usize,
 	/// 当前行
-	pub line: Vec<u8>,
+	pub line: Vec<char>,
 }
 
 /// # 日志

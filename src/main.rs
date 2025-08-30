@@ -5,12 +5,8 @@ use std::process::exit;
 use std::sync::OnceLock;
 
 use colored::*;
-
 use crate::_lib::io::{Log, LogType};
-use crate::parser::qln::{
-	lexer::{ErrorReporter, Lexer},
-	parsing,
-};
+use crate::parser::qln::lexer::{ErrorReporter, Lexer};
 use crate::parser::toml::{Config, load_config};
 
 mod _lib;
@@ -50,7 +46,7 @@ fn main() {
 			});
 		});
 		// 读取QingLuan.toml文件
-		let mut toml = _lib::io::FileWrapper::new(format!("{root_path}/QingLuan.toml"));
+		let mut toml = _lib::io::FileWrapper::new(format!("{}/QingLuan.toml", root_path.as_str()));
 		// 读取文件内容
 		// 解析项目配置并加入全局变量
 		PROJECT_CONFIG.get_or_init(|| load_config(
@@ -69,9 +65,10 @@ fn main() {
 					ErrorKind::PermissionDenied => { 22 }
 					_ => { 20 }
 				});
-			}));
-
-		let path = Path::new("D:\\Program\\Rust\\QingLuanCompile\\Note\\project\\src\\main.qln");
+			})
+		);
+		let qln_path = root_path.clone().as_str().to_owned() + "/src/main.qln";
+		let path = Path::new(&qln_path);
 		let lexer = Lexer::new(path);
 		let (tokens, errors) = lexer.expect("REASON").tokenize();
 

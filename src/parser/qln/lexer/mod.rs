@@ -1,6 +1,7 @@
 use std::cmp::PartialEq;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
+use std::str::FromStr;
 use colored::Colorize;
 use unicode_width::{UnicodeWidthChar};
 use crate::_lib::io::{Char, Cursor, CursorPointing, FileWrapper, Log, LogType};
@@ -47,15 +48,18 @@ impl Lexer {
 			return Err(Error::from(ErrorKind::NotFound));
 		}
 
-		let mut cursor = Cursor::new(file_wrapper);
-		let current_char = cursor.next();
+		if let Some(mut cursor) = Cursor::new(file_wrapper) {
+			let current_char = cursor.next();
 
-		Ok(Lexer {
-			cursor,
-			current_char,
-			tokens: Vec::new(),
-			errors: Vec::new(),
-		})
+			Ok(Lexer {
+				cursor,
+				current_char,
+				tokens: Vec::new(),
+				errors: Vec::new(),
+			})
+		} else {
+			Err(Error::from(ErrorKind::Other))
+		}
 	}
 
 	pub fn tokenize(mut self) -> (Vec<Token>, Vec<(LexError, Span)>) {
@@ -65,34 +69,25 @@ impl Lexer {
 			let start_pos = self.cursor.get_pointing();
 
 			match self.current_char {
-				Char::Char(c) => {
-					self.tokenize_marching(&c, &start_pos);
+				Char::Char(_) => {
+					if self.tokenize_marching(&start_pos) {
+						// 记录token的位置信息
+						if let Some(last_token) = self.tokens.last_mut() {
+							let end_pos = self.cursor.get_pointing();
+							last_token.span = Span {
+								start_line: start_pos.num_line,
+								start_col: start_pos.num_column,
+								end_line: end_pos.num_line,
+								end_col: end_pos.num_column,
+							};
+						}
+					}
 				}
 				Char::EndLine => {
-					// if let Some(last_token) = self.tokens.last_mut() {
-					// 	let end_pos = self.cursor.get_pointing();
-					// 	last_token.span = Span {
-					// 		start_line: start_pos.num_line,
-					// 		start_col: start_pos.num_column,
-					// 		end_line: end_pos.num_line,
-					// 		end_col: end_pos.num_column,
-					// 	};
-					// }
 					self.next(); // 跳过换行符
 					continue;
 				}
 				Char::EndFile | Char::ErrFile => break,
-			}
-
-			// 记录token的位置信息
-			if let Some(last_token) = self.tokens.last_mut() {
-				let end_pos = self.cursor.get_pointing();
-				last_token.span = Span {
-					start_line: start_pos.num_line,
-					start_col: start_pos.num_column,
-					end_line: end_pos.num_line,
-					end_col: end_pos.num_column,
-				};
 			}
 		}
 
@@ -117,7 +112,7 @@ impl Lexer {
 		self.errors.clear();
 		while !matches!(self.current_char, Char::EndFile | Char::ErrFile) {
 			self.skip_whitespace();
-			let mut can_break = 1;
+			let mut can_break: u8 = 1;
 			let start_pos = self.cursor.get_pointing();
 
 			match self.current_char {
@@ -134,24 +129,24 @@ impl Lexer {
 						}
 						_ => {}
 					}
-					self.tokenize_marching(&c, &start_pos);
+					if self.tokenize_marching(&start_pos) {
+						// 记录token的位置信息
+						if let Some(last_token) = self.tokens.last_mut() {
+							let end_pos = self.cursor.get_pointing();
+							last_token.span = Span {
+								start_line: start_pos.num_line,
+								start_col: start_pos.num_column,
+								end_line: end_pos.num_line,
+								end_col: end_pos.num_column,
+							};
+						}
+					}
 				}
 				Char::EndLine => {
 					self.next(); // 跳过换行符
 					continue;
 				}
 				Char::EndFile | Char::ErrFile => break,
-			}
-
-			// 记录token的位置信息
-			if let Some(last_token) = self.tokens.last_mut() {
-				let end_pos = self.cursor.get_pointing();
-				last_token.span = Span {
-					start_line: start_pos.num_line,
-					start_col: start_pos.num_column,
-					end_line: end_pos.num_line,
-					end_col: end_pos.num_column,
-				};
 			}
 		}
 
@@ -172,56 +167,61 @@ impl Lexer {
 		res
 	}
 
-	fn tokenize_marching(&mut self, c: &char, start_pos: &CursorPointing) {
-		match c {
-			// 处理标识符和关键字
-			c if c.is_alphabetic() || *c == '_' => self.scan_ident_or_keyword(),
+	fn tokenize_marching(&mut self, start_pos: &CursorPointing) -> bool {
+		if let Char::Char(c) = self.current_char {
+			match c {
+				// 处理标识符和关键字
+				c if c.is_alphabetic() || c == '_' => self.scan_ident_or_keyword(),
 
-			// 处理数字字面量
-			c if c.is_ascii_digit() => self.scan_number(),
+				// 处理数字字面量
+				c if c.is_ascii_digit() => self.scan_number(),
 
-			// 处理字符串字面量
-			'"' => self.scan_string(),
-			'\'' => self.scan_char(),
+				// 处理字符串字面量
+				'"' => self.scan_string(),
+				'\'' => self.scan_char(),
 
-			// 处理符号
-			'(' => self.add_token(TokenKind::LParen),
-			')' => self.add_token(TokenKind::RParen),
-			'{' => self.add_token(TokenKind::LBrace),
-			'}' => self.add_token(TokenKind::RBrace),
-			'[' => self.add_token(TokenKind::LBracket),
-			']' => self.add_token(TokenKind::RBracket),
-			';' => self.add_token(TokenKind::Semicolon),
-			':' => self.add_token(TokenKind::Colon),
-			',' => self.add_token(TokenKind::Comma),
-			'.' => self.add_token(TokenKind::Dot),
-			'%' => self.add_token(TokenKind::Percent),
-			'^' => self.add_token(TokenKind::Caret),
-			'?' => self.add_token(TokenKind::Question),
+				// 处理符号
+				'(' => self.add_token(TokenKind::LParen, false),
+				')' => self.add_token(TokenKind::RParen, false),
+				'{' => self.add_token(TokenKind::LBrace, false),
+				'}' => self.add_token(TokenKind::RBrace, false),
+				'[' => self.add_token(TokenKind::LBracket, false),
+				']' => self.add_token(TokenKind::RBracket, false),
+				';' => self.add_token(TokenKind::Semicolon, false),
+				':' => self.add_token(TokenKind::Colon, false),
+				',' => self.add_token(TokenKind::Comma, false),
+				'.' => self.add_token(TokenKind::Dot, false),
+				'^' => self.add_token(TokenKind::Caret, false),
+				'?' => self.add_token(TokenKind::Question, false),
 
-			'=' => self.scan_double(vec![('=', TokenKind::Eq)], TokenKind::Assign),
-			'!' => self.scan_double(vec![('=', TokenKind::Ne)], TokenKind::Exclamation),
-			'<' => self.scan_double(vec![('=', TokenKind::Le)], TokenKind::Lt),
-			'>' => self.scan_double(vec![('=', TokenKind::Ge)], TokenKind::Gt),
-			'&' => self.scan_double(vec![('&', TokenKind::And)], TokenKind::Ampersand),
-			'|' => self.scan_double(vec![('|', TokenKind::Or)], TokenKind::Pipe),
-			'+' => self.scan_double(vec![('=', TokenKind::PlusAssign)], TokenKind::Plus),
-			'-' => self.scan_double(vec![('=', TokenKind::MinusAssign), ('>', TokenKind::Arrow)], TokenKind::Minus),
-			'*' => self.scan_double(vec![('=', TokenKind::StarAssign)], TokenKind::Star),
-			'/' => self.scan_comment(),
+				'=' => self.scan_double(vec![('=', TokenKind::Eq)], TokenKind::Assign),
+				'!' => self.scan_double(vec![('=', TokenKind::Ne)], TokenKind::Exclamation),
+				'<' => self.scan_double(vec![('=', TokenKind::Le)], TokenKind::Lt),
+				'>' => self.scan_double(vec![('=', TokenKind::Ge)], TokenKind::Gt),
+				'&' => self.scan_double(vec![('&', TokenKind::And)], TokenKind::Ampersand),
+				'|' => self.scan_double(vec![('|', TokenKind::Or)], TokenKind::Pipe),
+				'+' => self.scan_double(vec![('=', TokenKind::PlusAssign)], TokenKind::Plus),
+				'-' => self.scan_double(vec![('=', TokenKind::MinusAssign), ('>', TokenKind::Arrow)], TokenKind::Minus),
+				'*' => self.scan_double(vec![('=', TokenKind::StarAssign)], TokenKind::Star),
+				'%' => self.scan_double(vec![('=', TokenKind::ModAssign)], TokenKind::Percent),
+				'/' => {
+					return self.scan_comment(start_pos);
+				}
 
-			// 错误字符处理
-			_ => {
-				let pos = self.cursor.get_pointing();
-				self.errors.push((LexError::InvalidChar(*c), Span {
-					start_line: start_pos.num_line,
-					start_col: start_pos.num_column,
-					end_line: pos.num_line,
-					end_col: pos.num_column,
-				}));
-				self.next(); // 跳过无效字符继续
+				// 错误字符处理
+				_ => {
+					let pos = self.cursor.get_pointing();
+					self.errors.push((LexError::InvalidChar(c), Span {
+						start_line: start_pos.num_line,
+						start_col: start_pos.num_column,
+						end_line: pos.num_line,
+						end_col: pos.num_column,
+					}));
+					self.next(); // 跳过无效字符继续
+				}
 			}
 		}
+		true
 	}
 
 	fn skip_whitespace(&mut self) {
@@ -238,7 +238,7 @@ impl Lexer {
 		self.current_char = self.cursor.next();
 	}
 
-	fn add_token(&mut self, kind: TokenKind) {
+	fn add_token(&mut self, kind: TokenKind, keep_char: bool) {
 		let pos = self.cursor.get_pointing();
 		self.tokens.push(Token {
 			kind,
@@ -249,7 +249,9 @@ impl Lexer {
 				end_col: pos.num_column,
 			},
 		});
-		self.next();
+		if !keep_char {
+			self.next();
+		}
 	}
 
 	fn scan_ident_or_keyword(&mut self) {
@@ -274,6 +276,9 @@ impl Lexer {
 			"static" => TokenKind::Key(Key::StructKey(KeyStruct::Static)),
 			"init" => TokenKind::Key(Key::StructKey(KeyStruct::Init)),
 			"fn" => TokenKind::Key(Key::StructKey(KeyStruct::Fn)),
+
+			"true" => TokenKind::Bool(true),
+			"false" => TokenKind::Bool(false),
 
 			"if" => TokenKind::Key(Key::LogicControl(KeyLogicControl::If)),
 			"else" => TokenKind::Key(Key::LogicControl(KeyLogicControl::Else)),
@@ -313,6 +318,7 @@ impl Lexer {
 		let start_pos = self.cursor.get_pointing();
 		let mut num_str = String::new();
 		let mut radix = 10;
+		let mut is_float = false;
 
 		// 处理进制前缀
 		if let Char::Char('0') = self.current_char {
@@ -340,7 +346,10 @@ impl Lexer {
 
 		while let Char::Char(c) = self.current_char {
 			// 字母数字下划线
-			if c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_' {
+			if c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_' || c == '.' {
+				if c == '.' && !is_float {
+					is_float = true;
+				}
 				num_str.push(c);
 				self.next();
 			} else {
@@ -349,17 +358,33 @@ impl Lexer {
 		}
 
 		// 解析数字
-		let kind = match i64::from_str_radix(if radix != 10 { &num_str[2..] } else { &num_str }, radix) {
-			Ok(num) => TokenKind::NumInt(num),
-			Err(_) => {
-				let pos = self.cursor.get_pointing();
-				self.errors.push((LexError::MalformedNumber, Span {
-					start_line: start_pos.num_line,
-					start_col: start_pos.num_column,
-					end_line: pos.num_line,
-					end_col: pos.num_column,
-				}));
-				TokenKind::NumInt(0) // 占位值
+		let kind = if is_float {
+			match f64::from_str(if radix != 10 { &num_str[2..] } else { &num_str }) {
+				Ok(num) => TokenKind::NumFloat(num),
+				Err(_) => {
+					let pos = self.cursor.get_pointing();
+					self.errors.push((LexError::MalformedNumber, Span {
+						start_line: start_pos.num_line,
+						start_col: start_pos.num_column,
+						end_line: pos.num_line,
+						end_col: pos.num_column,
+					}));
+					TokenKind::NumFloat(0.0)
+				}
+			}
+		} else {
+			match i64::from_str_radix(if radix != 10 { &num_str[2..] } else { &num_str }, radix) {
+				Ok(num) => TokenKind::NumInt(num),
+				Err(_) => {
+					let pos = self.cursor.get_pointing();
+					self.errors.push((LexError::MalformedNumber, Span {
+						start_line: start_pos.num_line,
+						start_col: start_pos.num_column,
+						end_line: pos.num_line,
+						end_col: pos.num_column,
+					}));
+					TokenKind::NumInt(0) // 占位值
+				}
 			}
 		};
 
@@ -429,7 +454,11 @@ impl Lexer {
 					temp_string.push(*c);
 					self.next();
 				}
-				Char::EndLine | Char::EndFile | Char::ErrFile => {
+				Char::EndLine => {
+					temp_string.push_str("\r\n");
+					self.next();
+				}
+				Char::EndFile | Char::ErrFile => {
 					let pos = self.cursor.get_pointing();
 					self.errors.push((LexError::UnclosedString, Span {
 						start_line: pos.num_line,
@@ -555,12 +584,12 @@ impl Lexer {
 		if let Char::Char(c) = self.current_char {
 			while let Some(kv) = iter.next() {
 				if kv.0 == c {
-					self.add_token(kv.clone().1);
+					self.add_token(kv.clone().1, false);
 					return;
 				}
 			}
-			self.add_token(def);
 		}
+		self.add_token(def, true);
 	}
 
 	fn scan_escape(&mut self) -> Option<char> {
@@ -587,7 +616,7 @@ impl Lexer {
 		};
 	}
 
-	fn scan_comment(&mut self) {
+	fn scan_comment(&mut self, start_pos: &CursorPointing) -> bool {
 		// 跳过第一个 '/' (当前字符)
 		self.next();
 
@@ -615,12 +644,12 @@ impl Lexer {
 						Char::EndFile | Char::ErrFile => {
 							let pos = self.cursor.get_pointing();
 							self.errors.push((LexError::UnexpectedEof, Span {
-								start_line: pos.num_line,
-								start_col: pos.num_column,
+								start_line: start_pos.num_line,
+								start_col: start_pos.num_column,
 								end_line: pos.num_line,
 								end_col: pos.num_column,
 							}));
-							return;
+							return false;
 						}
 
 						Char::Char('/') => {
@@ -645,19 +674,35 @@ impl Lexer {
 				}
 			}
 
+			// /=
+			Char::Char('=') => {
+				self.tokens.push(Token {
+					kind: TokenKind::SlashAssign,
+					span: Span {
+						start_line: start_pos.num_line,
+						start_col: start_pos.num_column,
+						end_line: self.cursor.get_pointing().num_line,
+						end_col: self.cursor.get_pointing().num_column,
+					},
+				});
+				return true;
+			}
+
 			// 单个 '/' (不是注释)
 			_ => {
 				self.tokens.push(Token {
 					kind: TokenKind::Slash,
 					span: Span {
-						start_line: self.cursor.get_pointing().num_line,
-						start_col: self.cursor.get_pointing().num_column,
+						start_line: start_pos.num_line,
+						start_col: start_pos.num_column,
 						end_line: self.cursor.get_pointing().num_line,
 						end_col: self.cursor.get_pointing().num_column,
 					},
 				});
+				return true;
 			}
 		}
+		false
 	}
 }
 
@@ -711,8 +756,15 @@ impl ErrorReporter {
 					span.start_col
 				),
 			).print();
-			println!(" {} {}", " ".repeat(line_num.len()), "|".bright_cyan());
-			println!(" {} {} {}", line_num.bright_cyan(), "|".bright_cyan(), line_str.replace("\t", " "));
+			println!(" {} {}",
+					 " ".repeat(line_num.len()),
+					 "|".bright_cyan()
+			);
+			println!(" {} {} {}",
+					 line_num.bright_cyan(),
+					 "|".bright_cyan(),
+					 line_str.replace("\t", " ")
+			);
 			println!(" {} {}{}{}",
 					 " ".repeat(line_num.len()),
 					 "|".bright_cyan(),
