@@ -5,15 +5,16 @@
 ### 编译命令
 
 ```
-用法：
-QingLuanCompile [参数] [选项]
-
-参数：
-[必填] <脚本路径> 填入用于解释的脚本路径
-
-选项：
-<-h | --help>     获取帮助
-<-c | --compile>  打包方式 可选：debug|release
+用法
+  QingLuanCompile.exe [OPTIONS] [PATH]
+参数
+  [PATH]  项目路径
+选项
+  -p, --package <debug|release>  输出类型 [默认：release]
+  -o, --os <os>                  目标操作系统 [默认：x86_64-pc-windows-msvc]
+  -l, --language <lang>          默认控制台输出语言 [默认：zh-CN]
+  -h, --help                     显示帮助
+  -v, --version                  显示版本
 ```
 
 ### 编译返回值
@@ -48,19 +49,7 @@ authors = [
 
 # 依赖
 [dependencies]
-# version 版本
-# include 包含 和 exclude 排除 二选一
-feature0 = { version = "0.1.0", include = ["feature0-1", "feature0-2"] }
-feature1 = { version = "0.1.0", exclude = ["feature0"] }
-# 指定版本，包含所有内容
-feature2 = "0.1.0"
-
-# 构建配置
-[build]
-# 输出路径
-path = "./target/"
-# 输出类型： <App | Lib>
-target = "App"
+feature = { version = "0.1.0"}
 ```
 
 
