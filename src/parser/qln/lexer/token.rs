@@ -94,6 +94,8 @@ pub enum TokenKind {
 	SlashAssign,
 	/// `%=`
 	ModAssign,
+	/// 作用域结束
+	EOS,
 	/// 文件结束
 	EOF,
 }

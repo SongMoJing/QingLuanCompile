@@ -31,7 +31,7 @@ pub struct Lexer {
 impl PartialEq for Char {
 	fn eq(&self, other: &Self) -> bool {
 		match (self, other) {
-			(Char::Char(c1), Char::Char(c2)) => c1 == c2,
+			(Char::Char(c1), Char::Char(c2)) => c1.eq(c2),
 			(Char::EndFile, Char::EndFile) => true,
 			(Char::ErrFile, Char::ErrFile) => true,
 			(Char::EndLine, Char::EndLine) => true,
@@ -153,7 +153,7 @@ impl Lexer {
 		// 添加文件结束标记
 		let pos = self.cursor.get_pointing();
 		self.tokens.push(Token {
-			kind: TokenKind::EOF,
+			kind: TokenKind::EOS,
 			span: Span {
 				start_line: pos.num_line,
 				start_col: pos.num_column,
@@ -594,7 +594,7 @@ impl Lexer {
 
 	fn scan_escape(&mut self) -> Option<char> {
 		let start_pos = self.cursor.get_pointing();
-		return match &self.current_char {
+		match &self.current_char {
 			Char::Char('n') => Some('\n'),
 			Char::Char('r') => Some('\r'),
 			Char::Char('t') => Some('\t'),
@@ -613,7 +613,7 @@ impl Lexer {
 				}
 				None
 			}
-		};
+		}
 	}
 
 	fn scan_comment(&mut self, start_pos: &CursorPointing) -> bool {

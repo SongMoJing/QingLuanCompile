@@ -1,13 +1,10 @@
-use std::{env, fmt, fs};
-use std::env::consts::{ARCH, OS};
+use std::{fs};
 use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::OnceLock;
-use clap::{arg, Command, CommandFactory, Parser};
+use clap::{arg, Parser};
 use colored::*;
-use lazy_static::lazy::Lazy;
 use rust_i18n::{i18n, t};
-use lazy_static::lazy_static;
 use crate::_lib::io::{Log, LogType};
 use crate::parser::qln::lexer::{ErrorReporter, Lexer};
 use crate::parser::toml::{Config, load_config};
@@ -24,7 +21,7 @@ lazy_static::lazy_static! {
 	static ref AUTHOR: String = t!("AUTHOR");
 }
 
-i18n!("locales");
+i18n!("locales", fallback = "zh-CN");
 
 static PROJECT_CONFIG: OnceLock<Config> = OnceLock::new();
 
@@ -126,7 +123,7 @@ fn set_language(lang: &str) {
 )]
 struct CLI {
 	/// 项目路径
-	#[arg(index = 1, value_name = "PATH", help = t!("ARGS.project_path"), required = true)]
+	#[arg(index = 1, value_name = "PATH", help = t!("ARGS.project_path"), required = false)]
 	project_path: String,
 	/// 编译目标<Debug|Release>
 	#[arg(
@@ -204,8 +201,8 @@ impl CLI {
 			cli.os = Some(HOST.to_string());
 		}
 		if let Some(language) = &cli.language {
-			let re = Regex::new(r"^(?P<lang>\w{2})(?:-(?P<region>\w{2}))?$").unwrap_or_else(|_| panic!("Invalid regex"));
-			let caps = re.captures(language).unwrap_or_else(|| panic!("Invalid language format"));
+			let re = Regex::new(r"^(?P<lang>\w{2})(?:-(?P<region>\w{2}))?$").unwrap_or_else(|_| Log::new(LogType::Err, t!("log.Err.Invalid.ARGS.LanguageFormat").as_str()).throw(13));
+			let caps = re.captures(language).unwrap_or_else(|| Log::new(LogType::Err, t!("log.Err.Invalid.ARGS.LanguageFormat").as_str()).throw(13));
 			set_language(caps.name("lang").unwrap().as_str());
 		}
 		cli

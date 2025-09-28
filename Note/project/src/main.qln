@@ -2,7 +2,7 @@ import ql.std.system.out;
 
 fn<pub> main() {
 	out.println(f"${
-			out.println("Welcome to QingLuan.");
-			return "Hello";
-		} World!");
+			out.println("Hello, qLer.");
+			return "Welcome to";
+		} QingLuan", end="!");
 }

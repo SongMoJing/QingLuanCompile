@@ -1,6 +1,6 @@
 VERSION: "t.0.1"
 NAME: "青鸾编译器"
-DESCRIPTION: "一个用于编译青鸾语言的编译器"
+DESCRIPTION: "编译青鸾项目源代码"
 AUTHOR: "PRC.松蓦箐 <Song_Mojing@outlook.com>"
 PACKAGE_MANAGER: "QingLuanPackageManager"
 ARGS:
@@ -38,5 +38,8 @@ log:
         TooManyLinks: "链接过多"
         Other: "其他错误"
         unknown: "未知错误"
+        Invalid:
+            ARGS:
+                LanguageFormat: "无效的语言格式"
     Warn:
         TYPE: "警告"
