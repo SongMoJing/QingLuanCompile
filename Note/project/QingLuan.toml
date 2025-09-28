@@ -6,12 +6,6 @@ authors = [
     "PRC.松蓦箐 <Song_Mojing@outlook.com>"
 ]
 
-[build]
-# package=["Debug", "Release"]
-package = "Debug"
-# target=["App", "Lib"]
-target = "App"
-
 #[dependencies]
 #ooo = { version = "0.1.0" }
 #xxx = { version = "0.1.0" }

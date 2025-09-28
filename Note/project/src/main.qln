@@ -1,6 +1,8 @@
+import ql.std.system.out;
+
 fn<pub> main() {
-	out.println("${
-		out.println("Welcome to QingLuan.");
-		return "Hello";
-	} World!");
+	out.println(f"${
+			out.println("Welcome to QingLuan.");
+			return "Hello";
+		} World!");
 }

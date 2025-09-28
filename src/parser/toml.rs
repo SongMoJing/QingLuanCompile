@@ -5,7 +5,6 @@ use std::io;
 #[derive(Debug, Deserialize)]
 pub struct Config {
 	pub project: Project,
-	pub build: Build,
 	pub dependencies: Option<HashMap<String, Dependency>>,
 }
 
@@ -15,14 +14,6 @@ pub struct Project {
 	pub version: String,
 	pub sdk_edition: String,
 	pub authors: Option<Vec<String>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Build {
-	#[serde(default)]
-	pub package: PackageType,
-	#[serde(default)]
-	pub target: TargetType,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
@@ -58,3 +49,5 @@ impl Default for TargetType {
 pub fn load_config(content: String) -> Result<Config, io::Error> {
 	toml::from_str(&content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
+
+

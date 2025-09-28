@@ -4,6 +4,7 @@ use std::io::{BufRead, ErrorKind};
 use std::process::exit;
 
 use colored::{ColoredString, Colorize};
+use rust_i18n::t;
 
 /// # 文件读取器
 pub struct FileWrapper {
@@ -162,13 +163,12 @@ impl Log {
 	/// ## 创建新的日志输出
 	/// `_type` 错误的类型： e:错误 i:表示信息 w:表示警告 <br />
 	/// `_msg` 消息正文 <br />
-	/// `stop_key` 是退出程序的代码（如果错误是致命的） <br />如果为`0`则不退出程序，继续运行
 	pub fn new(_type: LogType, _msg: &str) -> Self {
 		Self {
 			_type: match _type {
-				LogType::Info(s) => s,
-				LogType::Warn => "警告".yellow(),
-				LogType::Err => "错误".red(),
+				LogType::Info(s) => s.white(),
+				LogType::Warn => t!("log.Warn.TYPE").yellow(),
+				LogType::Err => t!("log.Err.TYPE").red(),
 			},
 			_msg: _msg.to_string(),
 		}
@@ -176,29 +176,29 @@ impl Log {
 
 	pub fn creat(err: ErrorKind, _msg: &str) -> Self {
 		Self {
-			_type: "错误".red(),
+			_type: t!("log.Err.TYPE").red(),
 			_msg: match err {
-				ErrorKind::NotFound => format!("{} {}", _msg, "不存在"),
-				ErrorKind::PermissionDenied => format!("{} {}", _msg, "权限不足"),
-				ErrorKind::AlreadyExists => format!("{} {}", _msg, "已存在"),
-				ErrorKind::InvalidData => format!("{} {}", _msg, "数据错误"),
-				ErrorKind::BrokenPipe => format!("{} {}", _msg, "管道已损坏"),
-				ErrorKind::NotConnected => format!("{} {}", _msg, "未连接"),
-				ErrorKind::ConnectionRefused => format!("{} {}", _msg, "连接被拒绝"),
-				ErrorKind::ConnectionReset => format!("{} {}", _msg, "连接被重置"),
-				ErrorKind::ConnectionAborted => format!("{} {}", _msg, "连接被中止"),
-				ErrorKind::TimedOut => format!("{} {}", _msg, "连接超时"),
-				ErrorKind::Interrupted => format!("{} {}", _msg, "操作被中断"),
-				ErrorKind::WriteZero => format!("{} {}", _msg, "写入零字节"),
-				ErrorKind::UnexpectedEof => format!("{} {}", _msg, "未预期的文件结束"),
-				ErrorKind::InvalidInput => format!("{} {}", _msg, "无效的输入"),
-				ErrorKind::NotADirectory => format!("{} {}", _msg, "不是目录"),
-				ErrorKind::IsADirectory => format!("{} {}", _msg, "是目录"),
-				ErrorKind::ReadOnlyFilesystem => format!("{} {}", _msg, "只读文件系统"),
-				ErrorKind::FileTooLarge => format!("{} {}", _msg, "文件太大"),
-				ErrorKind::TooManyLinks => format!("{} {}", _msg, "链接过多"),
-				ErrorKind::Other => format!("{} {}", _msg, "其他错误"),
-				_ => format!("{} {}", _msg, "未知错误"),
+				ErrorKind::NotFound => format!("{} {}", _msg, t!("log.Err.NotFound")),
+				ErrorKind::PermissionDenied => format!("{} {}", _msg, t!("log.Err.PermissionDenied")),
+				ErrorKind::AlreadyExists => format!("{} {}", _msg, t!("log.Err.AlreadyExists")),
+				ErrorKind::InvalidData => format!("{} {}", _msg, t!("log.Err.InvalidData")),
+				ErrorKind::BrokenPipe => format!("{} {}", _msg, t!("log.Err.BrokenPipe")),
+				ErrorKind::NotConnected => format!("{} {}", _msg, t!("log.Err.NotConnected")),
+				ErrorKind::ConnectionRefused => format!("{} {}", _msg, t!("log.Err.ConnectionRefused")),
+				ErrorKind::ConnectionReset => format!("{} {}", _msg, t!("log.Err.ConnectionReset")),
+				ErrorKind::ConnectionAborted => format!("{} {}", _msg, t!("log.Err.ConnectionAborted")),
+				ErrorKind::TimedOut => format!("{} {}", _msg, t!("log.Err.TimedOut")),
+				ErrorKind::Interrupted => format!("{} {}", _msg, t!("log.Err.Interrupted")),
+				ErrorKind::WriteZero => format!("{} {}", _msg, t!("log.Err.WriteZero")),
+				ErrorKind::UnexpectedEof => format!("{} {}", _msg, t!("log.Err.UnexpectedEof")),
+				ErrorKind::InvalidInput => format!("{} {}", _msg, t!("log.Err.InvalidInput")),
+				ErrorKind::NotADirectory => format!("{} {}", _msg, t!("log.Err.NotADirectory")),
+				ErrorKind::IsADirectory => format!("{} {}", _msg, t!("log.Err.IsADirectory")),
+				ErrorKind::ReadOnlyFilesystem => format!("{} {}", _msg, t!("log.Err.ReadOnlyFilesystem")),
+				ErrorKind::FileTooLarge => format!("{} {}", _msg, t!("log.Err.FileTooLarge")),
+				ErrorKind::TooManyLinks => format!("{} {}", _msg, t!("log.Err.TooManyLinks")),
+				ErrorKind::Other => format!("{} {}", _msg, t!("log.Err.Other")),
+				_ => format!("{} {}", _msg, t!("log.Err.unknown")),
 			},
 		}
 	}

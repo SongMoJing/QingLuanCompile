@@ -7,7 +7,23 @@ authors = [
 ]
 
 [dependencies]
+# target-lexicon 目标三元组
+target-lexicon = "0.12"
+# lazy_static 懒加载
+lazy_static = "1.5.0"
+# i18n 语言包
+rust-i18n = "1.2.2"
+# clap 命令行参数解析
+clap = { version = "4.5.48", features = ["derive"] }
+# colored 彩色输出
 colored = "3.0.0"
+# toml TOML文件解析
 toml = "0.8.20"
+# unicode-width 获取字符串长度
 unicode-width = "0.2.0"
+# serde 序列化
 serde = { version = "1.0.218", features = ["derive"] }
+regex = "1.11.2"
+
+
+

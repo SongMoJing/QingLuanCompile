@@ -1,30 +1,30 @@
-use std::fs;
+use std::{env, fmt, fs};
+use std::env::consts::{ARCH, OS};
 use std::io::ErrorKind;
 use std::path::Path;
-use std::process::exit;
 use std::sync::OnceLock;
-
+use clap::{arg, Command, CommandFactory, Parser};
 use colored::*;
+use lazy_static::lazy::Lazy;
+use rust_i18n::{i18n, t};
+use lazy_static::lazy_static;
 use crate::_lib::io::{Log, LogType};
 use crate::parser::qln::lexer::{ErrorReporter, Lexer};
 use crate::parser::toml::{Config, load_config};
+use target_lexicon::HOST;
+use regex::Regex;
 
 mod _lib;
 mod parser;
 
-/// ## 程序版本
-const VERSION: &str = "t.0.1";
-/// ## 程序名称
-const NAME: &str = "\"青鸾\" 编译器";
-/// ## 程序作者
-const AUTHOR: &str = "PRC.松蓦箐 <Song_Mojing@outlook.com>";
-/// ## 包管理器
-const PACKAGE_MANAGER: &str = "QingLuanPackageManager";
-
-/// ## 可接受的参数列表
-struct Args {
-	project_path: Option<String>,
+// 假设 t! 宏返回 String，创建一个静态引用
+lazy_static::lazy_static! {
+    static ref VERSION: String = t!("VERSION");
+    static ref DESCRIPTION: String = t!("DESCRIPTION");
+	static ref AUTHOR: String = t!("AUTHOR");
 }
+
+i18n!("locales");
 
 static PROJECT_CONFIG: OnceLock<Config> = OnceLock::new();
 
@@ -32,65 +32,75 @@ fn main() {
 	// CLI输出编码设置为Unicode
 	#[cfg(windows)]
 	enable_ansi_support();
+	set_language("zh-CN");
 	// 获得参数
-	let args = get_args();
-	// 检查开始方式
-	if let Some(root_path) = &args.project_path {
-		// 查看projectPath是否存在
-		fs::metadata(root_path).unwrap_or_else(|e| {
-			let log = Log::creat(e.kind(), root_path.as_str());
+	let args = CLI::parse();
+	// 查看projectPath是否存在
+	fs::metadata(&args.project_path).unwrap_or_else(|e| {
+		let log = Log::creat(e.kind(), args.project_path.as_str());
+		log.throw(match e.kind() {
+			ErrorKind::NotFound => { 21 }
+			ErrorKind::PermissionDenied => { 22 }
+			_ => { 20 }
+		});
+	});
+	// 读取QingLuan.toml文件
+	let mut toml = _lib::io::FileWrapper::new(format!("{}/QingLuan.toml", args.project_path.as_str()));
+	// 读取文件内容
+	// 解析项目配置并加入全局变量
+	PROJECT_CONFIG.get_or_init(|| load_config(
+		toml.read_to_string().unwrap_or_else(|e| {
+			let log = Log::creat(e.kind(), toml.path().as_str());
 			log.throw(match e.kind() {
 				ErrorKind::NotFound => { 21 }
 				ErrorKind::PermissionDenied => { 22 }
 				_ => { 20 }
 			});
+		}))
+		.unwrap_or_else(|e| {
+			let log = Log::creat(e.kind(), format!("{}: \n{}", toml.path(), e).as_str());
+			log.throw(match e.kind() {
+				ErrorKind::NotFound => { 21 }
+				ErrorKind::PermissionDenied => { 22 }
+				_ => { 20 }
+			});
+		})
+	);
+	let qln_path = args.project_path.clone().as_str().to_owned() + "/src/main.qln";
+	let path = Path::new(&qln_path);
+	let lexer = Lexer::new(path);
+	let (tokens, errors) = lexer.unwrap_or_else(|e| {
+		let log = Log::creat(e.kind(), path.to_str().unwrap());
+		log.throw(match e.kind() {
+			ErrorKind::NotFound => { 21 }
+			ErrorKind::PermissionDenied => { 22 }
+			_ => { 20 }
 		});
-		// 读取QingLuan.toml文件
-		let mut toml = _lib::io::FileWrapper::new(format!("{}/QingLuan.toml", root_path.as_str()));
-		// 读取文件内容
-		// 解析项目配置并加入全局变量
-		PROJECT_CONFIG.get_or_init(|| load_config(
-			toml.read_to_string().unwrap_or_else(|e| {
-				let log = Log::creat(e.kind(), toml.path().as_str());
-				log.throw(match e.kind() {
-					ErrorKind::NotFound => { 21 }
-					ErrorKind::PermissionDenied => { 22 }
-					_ => { 20 }
-				});
-			}))
-			.unwrap_or_else(|e| {
-				let log = Log::creat(e.kind(), format!("{}: \n{}", toml.path(), e).as_str());
-				log.throw(match e.kind() {
-					ErrorKind::NotFound => { 21 }
-					ErrorKind::PermissionDenied => { 22 }
-					_ => { 20 }
-				});
+	}).tokenize();
+	
+	// 报告错误
+	if !errors.is_empty() {
+		let source = fs::read_to_string(path).unwrap_or_else(|e| {
+			let log = Log::creat(e.kind(), path.to_str().unwrap());
+			log.throw(match e.kind() {
+				ErrorKind::NotFound => { 21 }
+				ErrorKind::PermissionDenied => { 22 }
+				_ => { 20 }
 			})
-		);
-		let qln_path = root_path.clone().as_str().to_owned() + "/src/main.qln";
-		let path = Path::new(&qln_path);
-		let lexer = Lexer::new(path);
-		let (tokens, errors) = lexer.expect("REASON").tokenize();
-
-		// 报告错误
-		if !errors.is_empty() {
-			let source = fs::read_to_string(path).expect("无法读取文件");
-			let mut reporter = ErrorReporter::new(&source, path);
-			for (error, span) in errors {
-				reporter.add_error(error.clone(), span);
-			}
-			reporter.report();
-			Log::new(LogType::Err, "编译因错误而终止").throw(1);
-		} else {
-			for token in tokens {
-				println!("{:?}\n\t{:?}", token.kind, token.span);
-			}
-			// let mut parser = Parser::new(tokens);
-			// let ast = parser.parse_expr();
-			// println!("{:?}", ast);
+		});
+		let mut reporter = ErrorReporter::new(&source, path);
+		for (error, span) in errors {
+			reporter.add_error(error.clone(), span);
 		}
+		reporter.report();
+		Log::new(LogType::Err, t!("log.Err.CompileError").as_str()).throw(1);
 	} else {
-		Log::new(LogType::Err, "缺少项目路径").throw(10);
+		for token in tokens {
+			println!("{:?}\n\t{:?}", token.kind, token.span);
+		}
+		// let mut parser = Parser::new(tokens);
+		// let ast = parser.parse_expr();
+		// println!("{:?}", ast);
 	}
 }
 
@@ -99,52 +109,113 @@ fn enable_ansi_support() {
 	let _ = control::set_virtual_terminal(true);
 }
 
-/// ## 获取命令行参数
-/// 读入操作和必要参数<br>
-/// scriptPath. 路径
-fn get_args() -> Args {
-	let mut res: Args = Args {
-		project_path: None,
-	};
+fn set_language(lang: &str) {
+	rust_i18n::set_locale(lang);
+}
 
-	// 打印帮助
-	fn help() {
-		println!("{}", "帮助".yellow());
-		println!("   {} 版本：{}", NAME.green(), VERSION.green());
-		println!("   {}", AUTHOR);
-		println!("{}", "用法：".yellow());
-		println!("   QingLuanCompile [参数] [选项]");
-		println!("{}", "参数：".yellow());
-		println!("   [必填] <路径> 项目根路径");
-		println!("{}", "选项：".yellow());
-		println!("   <-h | --help>     获取帮助");
-		exit(0);
+#[derive(Parser, Debug)]
+#[command(
+	version = VERSION.as_str(),
+	about = DESCRIPTION.as_str(),
+	author = AUTHOR.as_str(),
+	long_about = None,
+	arg_required_else_help = true,
+	disable_help_flag = true,
+	disable_version_flag = true,
+	help_template = CLI::custom_help_template()
+)]
+struct CLI {
+	/// 项目路径
+	#[arg(index = 1, value_name = "PATH", help = t!("ARGS.project_path"), required = true)]
+	project_path: String,
+	/// 编译目标<Debug|Release>
+	#[arg(
+		short,
+		long,
+		help = format!("{}{}]", t!("ARGS.package"), "release"),
+		value_name = "debug|release",
+		default_value = "release",
+		hide_possible_values = true,
+		hide_default_value = true
+	)]
+	package: Package,
+	/// 编译目标系统
+	#[arg(
+		short,
+		long,
+		help = format!("{}{}]", t!("ARGS.os"), "x86_64-pc-windows-msvc"),
+		value_name = "os",
+		default_value = "x86_64-pc-windows-msvc",
+		hide_possible_values = true,
+		hide_default_value = true
+	)]
+	os: Option<String>,
+	/// 输出
+	#[arg(
+		short,
+		long,
+		help = format!("{}{}]", t!("ARGS.language"), "zh-CN"),
+		value_name = "lang",
+	)]
+	language: Option<String>,
+	/// 帮助
+	#[arg(
+		short,
+		long,
+		help = t!("ARGS.help"),
+		action = clap::ArgAction::Help,
+	)]
+	help: Option<bool>,
+	/// 版本
+	#[arg(
+		short,
+		long,
+		help = t!("ARGS.version"),
+		action = clap::ArgAction::Version,
+	)]
+	version: Option<bool>,
+}
+
+impl CLI {
+	fn custom_help_template() -> String {
+		format!(r#"{name} {version}
+{{before-help}}{{about-section}}
+{usage}
+  {{usage}}
+
+{arguments}
+{{positionals}}
+
+{options}
+{{options}}
+
+{{after-help}}"#,
+		        name = t!("NAME").bright_green().bold(),
+		        version = VERSION.as_str().bright_red(),
+		        usage = t!("ARGS.usage").bright_yellow().bold(),
+		        arguments = t!("ARGS.params").bright_yellow().bold(),
+		        options = t!("ARGS.options").bright_yellow().bold()
+		)
 	}
-
-	// 获取参数
-	let mut args = std::env::args();
-	if args.len() < 2 {
-		help();
-	} else {
-		args.next();
-	}
-
-	while let Some(arg) = args.next() {
-		if arg.starts_with("-") {
-			match arg.as_str() {
-				// 显示帮助
-				"-h" | "--help" => {
-					help();
-					exit(0);
-				}
-				// 未知目标
-				_ => {
-					Log::new(LogType::Err, format!("未知的选项 {}。", arg).as_str()).throw(11);
-				}
-			}
-		} else {
-			res.project_path = Some(arg.replace("\\", "/"));
+	
+	pub fn parse() -> Self {
+		let mut cli = <Self as Parser>::parse();
+		if cli.os.is_none() {
+			cli.os = Some(HOST.to_string());
 		}
+		if let Some(language) = &cli.language {
+			let re = Regex::new(r"^(?P<lang>\w{2})(?:-(?P<region>\w{2}))?$").unwrap_or_else(|_| panic!("Invalid regex"));
+			let caps = re.captures(language).unwrap_or_else(|| panic!("Invalid language format"));
+			set_language(caps.name("lang").unwrap().as_str());
+		}
+		cli
 	}
-	res
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum, Debug)]
+enum Package {
+	#[value(name = "debug", alias = "d")]
+	Debug,
+	#[value(name = "release", alias = "r")]
+	Release,
 }
