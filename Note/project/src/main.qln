@@ -25,7 +25,7 @@ mod<pub> Main {
 		// 内部类
 		class<pub, static> Task() {
 			// 构造函数
-			init<pub>() {
+			init<pub>(&self) {
 				// 输出
 				io.print("新对象.");
 			}
@@ -35,7 +35,7 @@ mod<pub> Main {
 	// 定义类
 	class<pub> Task(): Main.Utils {
 		// 构造函数
-		init() {
+		init(&self) {
 			self.name = "Hello类";
 			io.print("新对象.");
 		}
@@ -52,7 +52,7 @@ mod<pub> Main {
  */
 fn<pub> Main() {
 	// 创建对象
-	let obj = new Main.Hello().say();
+	val obj = new Main.Hello().say();
 	// 输出
 	io.print(obj.getName());
 }

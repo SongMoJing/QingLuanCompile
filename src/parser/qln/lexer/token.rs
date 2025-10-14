@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
 	pub kind: TokenKind,
-	pub span: Span, // 包含始、终位置
+	pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -163,7 +163,7 @@ pub enum Op {
 	Pipe,
 	/// `^` `[expression] ^ [expression]` 逻辑异或
 	Caret,
-	/// `!` `! [expression]` 取反
+	/// `!` `! [expression]` 布尔值取反
 	Exclamation,
 	/// `?` `[expression]?` 错误传播
 	Question,
