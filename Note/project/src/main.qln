@@ -1,8 +1,58 @@
-import ql.std.system.out;
+// 导入类型和标准库
+import ql.lang.type {
+	String as str
+};
+import ql.std.console.out as io;
 
-fn<pub> main() {
-	out.println(f"${
-			out.println("Hello, qLer.");
-			return "Welcome to";
-		} QingLuan", end="!");
+// 定义模块
+mod<pub> Main {
+	// 定义类
+	class<pub> Utils() {
+		// 属性
+		attr<pub> name: str = "Utils类";
+
+		// 静态调用
+		static {
+			// 静态属性初始化
+			io.print("${return 0x00200}静态属\u{0012}性初始化.");
+		}
+
+		// 方法
+		fn<pub> getName(&self) -> str {
+			return self.name;
+		}
+
+		// 内部类
+		class<pub, static> Task() {
+			// 构造函数
+			init<pub>() {
+				// 输出
+				io.print("新对象.");
+			}
+		}
+	}
+
+	// 定义类
+	class<pub> Task(): Main.Utils {
+		// 构造函数
+		init() {
+			self.name = "Hello类";
+			io.print("新对象.");
+		}
+
+		// 方法
+		fn<pub> say() {
+			io.print("Hello World!");
+		}
+	}
+}
+
+/**
+ * 入口函数
+ */
+fn<pub> Main() {
+	// 创建对象
+	let obj = new Main.Hello().say();
+	// 输出
+	io.print(obj.getName());
 }
