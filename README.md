@@ -52,8 +52,8 @@ name = "青鸾测试"
 version = "1.0.0"
 # SDK版本
 sdk_edition = "0.1.0"
-# 入口文件
-main = "src/main.qls"
+# 入口文件（无后缀名）
+main = "src/main"
 # 作者
 authors = [
     "PRC.松蓦箐 <Song_Mojing@outlook.com>"
