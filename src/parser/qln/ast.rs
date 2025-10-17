@@ -1,4 +1,24 @@
-use crate::parser::qln::lexer::token::Token;
+use crate::parser::qln::token::Token;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AST {
+    ast_type: ASTType,
+    body: Vec<Node>,
+}
+
+impl AST {
+	pub fn new(ast_type: ASTType) -> Self {
+		Self {
+			ast_type,
+			body: vec![],
+		}
+	}
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ASTType {
+    File,
+}
 
 /// AST 节点定义
 #[derive(Debug, Clone, PartialEq)]

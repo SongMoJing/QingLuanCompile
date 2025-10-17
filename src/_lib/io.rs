@@ -1,6 +1,6 @@
 use std::fs;
 use std::io;
-use std::io::{BufRead, ErrorKind};
+use std::io::{BufRead, Error, ErrorKind};
 use std::process::exit;
 
 use colored::{ColoredString, Colorize};
@@ -86,7 +86,7 @@ impl Cursor {
 				point: 0 as char,
 			});
 		}
-		return None;
+		None
 	}
 
 	pub fn next(&mut self) -> Char {
@@ -212,5 +212,9 @@ impl Log {
 	pub fn throw(self, exit_code: i32) -> ! {
 		eprint!("{}[{}] {}", self._type, exit_code.to_string().yellow(), self._msg);
 		exit(exit_code);
+	}
+	
+	pub fn parse_error(err: Error) -> Self {
+		Self::creat(err.kind(), err.to_string().as_str())
 	}
 }

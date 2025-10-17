@@ -1,13 +1,12 @@
 use crate::_lib::io::{Char, Cursor, CursorPointing, FileWrapper, Log, LogType};
-use crate::parser::qln::lexer::token::*;
+use crate::parser::qln::token::*;
 use colored::Colorize;
 use std::cmp::PartialEq;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::str::FromStr;
+use rust_i18n::t;
 use unicode_width::UnicodeWidthChar;
-
-pub(crate) mod token;
 
 // 词法错误类型
 #[derive(Debug, Clone, PartialEq)]
@@ -191,23 +190,46 @@ impl Lexer {
                 ':' => self.add_token(TokenKind::Symbol(Symbol::Colon), false),
                 ',' => self.add_token(TokenKind::Symbol(Symbol::Comma), false),
                 '.' => self.add_token(TokenKind::Symbol(Symbol::Dot), false),
-	            
+
                 '^' => self.add_token(TokenKind::Op(Op::Caret), false),
                 '?' => self.add_token(TokenKind::Op(Op::Question), false),
                 '~' => self.add_token(TokenKind::Op(Op::Tilde), false),
-                '=' => self.scan_double(vec![('=', TokenKind::Op(Op::Eq))], TokenKind::Op(Op::Assign)),
-                '!' => self.scan_double(vec![('=', TokenKind::Op(Op::Ne))], TokenKind::Op(Op::Exclamation)),
+                '=' => self.scan_double(
+                    vec![('=', TokenKind::Op(Op::Eq))],
+                    TokenKind::Op(Op::Assign),
+                ),
+                '!' => self.scan_double(
+                    vec![('=', TokenKind::Op(Op::Ne))],
+                    TokenKind::Op(Op::Exclamation),
+                ),
                 '<' => self.scan_double(vec![('=', TokenKind::Op(Op::Le))], TokenKind::Op(Op::Lt)),
                 '>' => self.scan_double(vec![('=', TokenKind::Op(Op::Ge))], TokenKind::Op(Op::Gt)),
-                '&' => self.scan_double(vec![('&', TokenKind::Op(Op::And))], TokenKind::Op(Op::Ampersand)),
-                '|' => self.scan_double(vec![('|', TokenKind::Op(Op::Or))], TokenKind::Op(Op::Pipe)),
-                '+' => self.scan_double(vec![('=', TokenKind::Op(Op::PlusAssign))], TokenKind::Op(Op::Plus)),
+                '&' => self.scan_double(
+                    vec![('&', TokenKind::Op(Op::And))],
+                    TokenKind::Op(Op::Ampersand),
+                ),
+                '|' => {
+                    self.scan_double(vec![('|', TokenKind::Op(Op::Or))], TokenKind::Op(Op::Pipe))
+                }
+                '+' => self.scan_double(
+                    vec![('=', TokenKind::Op(Op::PlusAssign))],
+                    TokenKind::Op(Op::Plus),
+                ),
                 '-' => self.scan_double(
-                    vec![('=', TokenKind::Op(Op::MinusAssign)), ('>', TokenKind::Op(Op::Arrow))],
+                    vec![
+                        ('=', TokenKind::Op(Op::MinusAssign)),
+                        ('>', TokenKind::Op(Op::Arrow)),
+                    ],
                     TokenKind::Op(Op::Minus),
                 ),
-                '*' => self.scan_double(vec![('=', TokenKind::Op(Op::StarAssign))], TokenKind::Op(Op::Star)),
-                '%' => self.scan_double(vec![('=', TokenKind::Op(Op::ModAssign))], TokenKind::Op(Op::Percent)),
+                '*' => self.scan_double(
+                    vec![('=', TokenKind::Op(Op::StarAssign))],
+                    TokenKind::Op(Op::Star),
+                ),
+                '%' => self.scan_double(
+                    vec![('=', TokenKind::Op(Op::ModAssign))],
+                    TokenKind::Op(Op::Percent),
+                ),
                 '/' => {
                     return self.scan_comment(start_pos);
                 }
@@ -769,15 +791,14 @@ impl ErrorReporter {
             let line_num = span.start_line;
             let line_str = self.get_line_content(line_num - 1);
 
-            // Rust 风格错误格式
             let message = match error {
-                LexError::InvalidChar(c) => format!("意外的字符: '{}'", c),
-                LexError::UnclosedString => "字符串未闭合".to_string(),
-                LexError::InvalidUnicode => "无效的Unicode转义序列".to_string(),
-                LexError::MalformedNumber => "数字格式错误".to_string(),
-                LexError::UnexpectedEof => "文件意外结束".to_string(),
-                LexError::InvalidEscape(c) => format!("无法转义: '{}'", c),
-                LexError::MalformedChar => "无效的字符".to_string(),
+                LexError::InvalidChar(c) => format!("{}: '{}'", t!("log.Err.LexError.InvalidChar"), c),
+                LexError::UnclosedString => t!("log.Err.LexError.UnclosedString").to_string(),
+                LexError::InvalidUnicode =>t!("log.Err.LexError.InvalidUnicode").to_string(),
+                LexError::MalformedNumber => t!("log.Err.LexError.MalformedNumber").to_string(),
+                LexError::UnexpectedEof => t!("log.Err.LexError.UnexpectedEof").to_string(),
+                LexError::InvalidEscape(c) => format!("{}: '{}'", t!("log.Err.LexError.InvalidEscape"), c),
+                LexError::MalformedChar => t!("log.Err.LexError.MalformedChar").to_string(),
             };
 
             let line_num = line_num.to_string();

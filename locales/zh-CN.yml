@@ -1,7 +1,4 @@
-VERSION: "t.0.1"
-NAME: "青鸾编译器"
 DESCRIPTION: "编译青鸾项目源代码"
-AUTHOR: "PRC.松蓦箐 <Song_Mojing@outlook.com>"
 PACKAGE_MANAGER: "QingLuanPackageManager"
 ARGS:
     usage: "用法"
@@ -9,6 +6,7 @@ ARGS:
     options: "选项"
     help: "显示帮助"
     version: "显示版本"
+    author: "显示作者"
     project_path: "项目路径"
     package: "输出类型 [默认："
     os: "目标操作系统 [默认："
@@ -38,8 +36,17 @@ log:
         TooManyLinks: "链接过多"
         Other: "其他错误"
         unknown: "未知错误"
+        LexError:
+            InvalidChar: "意外的字符"
+            UnclosedString: "字符串未关闭"
+            InvalidUnicode: "无效的Unicode字符"
+            MalformedNumber: "无效的数字"
+            UnexpectedEof: "未预期的文件结束"
+            InvalidEscape: "无效的转义字符"
+            MalformedChar: "无效的字符"
         Invalid:
             ARGS:
                 LanguageFormat: "无效的语言格式"
+                Package: "无效的输出类型"
     Warn:
         TYPE: "警告"
