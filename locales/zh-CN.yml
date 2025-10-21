@@ -1,3 +1,4 @@
+NAME: "青鸾编译器"
 DESCRIPTION: "编译青鸾项目源代码"
 PACKAGE_MANAGER: "QingLuanPackageManager"
 ARGS:
