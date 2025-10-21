@@ -46,7 +46,7 @@ impl Program {
             })
         });
         // 遍历src目录
-        for entry in fs::read_dir(format!("{}/src", self.path)).unwrap_or_else(|e| {
+        for _entry in fs::read_dir(format!("{}/src", self.path)).unwrap_or_else(|e| {
             let log = Log::creat(e.kind(), format!("{}: \n{}", toml.path(), e).as_str());
             log.throw(match e.kind() {
                 ErrorKind::NotFound => 21,
@@ -85,14 +85,20 @@ impl Program {
                 reporter.add_error(error.clone(), span);
             }
             reporter.report();
-            Log::new(LogType::Err, t!("log.Err.CompileError").to_string().as_str()).throw(1);
+            Log::new(
+                LogType::Err,
+                t!("log.Err.CompileError").to_string().as_str(),
+            )
+            .throw(1);
         } else {
             let mut parser = ASTParser::new(tokens);
             let ast: AST = parser.parse();
+            
+            println!("{:?}", ast);
         }
     }
 
     fn compile_file(&self, relative_path: &Path) {
-        let path = Path::new(&relative_path);
+        let _path = Path::new(&relative_path);
     }
 }

@@ -109,9 +109,9 @@ impl Lexer {
         let save = (self.tokens.clone(), self.errors.clone());
         self.tokens.clear();
         self.errors.clear();
+        let mut can_break: u8 = 1;
         while !matches!(self.current_char, Char::EndFile | Char::ErrFile) {
             self.skip_whitespace();
-            let mut can_break: u8 = 1;
             let start_pos = self.cursor.get_pointing();
 
             match self.current_char {
