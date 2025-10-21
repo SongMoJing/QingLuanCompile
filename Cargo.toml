@@ -8,7 +8,7 @@ authors = [
 
 [dependencies]
 # target-lexicon 目标三元组
-target-lexicon = "0.12"
+target-lexicon = "0.13.3"
 # sys-locale 获取系统语言
 sys-locale = "0.3"
 # lazy_static 懒加载
