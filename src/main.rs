@@ -5,6 +5,7 @@ use crate::parser::qln::Program;
 use crate::parser::toml::Config;
 use clap::{Arg, ArgAction, Command};
 use colored::*;
+use regex::Regex;
 use rust_i18n::{i18n, t};
 use std::fs;
 use std::io::ErrorKind;
@@ -17,7 +18,8 @@ mod parser;
 
 lazy_static::lazy_static! {
     static ref VERSION: String = String::from("t-0.1.0");
-    static ref NAME: String = t!("NAME").to_string();
+    static ref NAME: String = String::from(t!("NAME"));
+    static ref SHORT_NAME: String = String::from("QLC");
     static ref AUTHOR: String = String::from("PRC.松蓦箐 <Song_Mojing@outlook.com>");
 }
 
@@ -29,7 +31,12 @@ fn main() {
     // CLI输出编码设置为Unicode
     #[cfg(windows)]
     enable_ansi_support();
-    set_language("zh-CN");
+    // 设置默认语言
+    if let Some(lang) = get_locale() {
+        set_language(lang.as_str());
+    } else {
+        set_language("zh-CN");
+    }
     // 获得参数
     let args = CLI::parse();
     println!("{:?}", args.os);
@@ -64,11 +71,10 @@ struct CLI {
 
 impl CLI {
     fn command() -> Command {
-        Command::new(NAME.as_str())
+        Command::new(SHORT_NAME.as_str())
             .version(VERSION.as_str())
             .about(t!("DESCRIPTION").to_string())
             .author(AUTHOR.as_str())
-            .arg_required_else_help(true)
             .disable_help_flag(true)
             .disable_version_flag(true)
             .help_template(Self::custom_help_template())
@@ -158,16 +164,27 @@ impl CLI {
 
         // 处理语言设置
         if let Some(language) = matches.get_one::<String>("language") {
-            set_language(language);
-        } else {
-            eprint!("{}", "未设置语言");
-            if let Some(lang) = get_locale() {
-                set_language(lang.as_str());
-                eprint!("已设置语言为{}", lang);
-            }
+            let re = Regex::new(r"^(?P<lang>\w+)(?:-(?P<region>\w+))?$").unwrap_or_else(|_| {
+                Log::new(
+                    LogType::Err,
+                    t!("log.Err.Invalid.ARGS.LanguageFormat")
+                        .to_string()
+                        .as_str(),
+                )
+                .throw(13)
+            });
+            let caps = re.captures(language).unwrap_or_else(|| {
+                Log::new(
+                    LogType::Err,
+                    t!("log.Err.Invalid.ARGS.LanguageFormat")
+                        .to_string()
+                        .as_str(),
+                )
+                .throw(13)
+            });
+            set_language(caps.get(0).unwrap().as_str());
         }
-        
-        eprint!("{}", "123");
+
         if let Some(project_path) = matches
             .get_one::<String>("project_path")
             .map(|s| s.to_string())
@@ -194,12 +211,12 @@ impl CLI {
                 },
             }
         } else {
-            // if matches.get_flag("version") {
-            //     println!("{} {}", NAME.as_str(), VERSION.as_str());
-            //     std::process::exit(0);
-            // }
-            // let mut cmd = Self::command();
-            // cmd.print_help().unwrap();
+            if matches.get_flag("version") {
+                println!("{} {}", NAME.as_str(), VERSION.as_str());
+                std::process::exit(0);
+            }
+            let mut cmd = Self::command();
+            cmd.print_help().unwrap();
             std::process::exit(0);
         }
     }
