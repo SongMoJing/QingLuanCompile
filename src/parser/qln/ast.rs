@@ -1,4 +1,4 @@
-use crate::parser::qln::token::Token;
+use crate::parser::qln::token::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AST {
@@ -25,7 +25,7 @@ pub enum ASTType {
 pub enum Node {
     Import {
         // 模块名
-        name: String,
+        name: TokenKind,
         // 模块路径
         path: Vec<String>,
     },
