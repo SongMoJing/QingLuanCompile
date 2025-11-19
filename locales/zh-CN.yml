@@ -2,19 +2,25 @@ NAME: "青鸾编译器"
 DESCRIPTION: "编译青鸾项目源代码"
 PACKAGE_MANAGER: "QingLuanPackageManager"
 ARGS:
-    usage: "用法"
+    usage_title: "用法"
+    usage_content: "%{app} [项目路径] <参数>"
     params: "参数"
     options: "选项"
     help: "显示帮助"
     version: "显示版本"
     author: "显示作者"
     project_path: "项目路径"
-    package: "输出类型 [默认："
-    os: "目标操作系统 [默认："
-    language: "默认控制台输出语言 [默认："
+    package: "输出类型 [默认：%{package}]"
+    os: "目标操作系统 [默认：%{os}]"
+    language: "默认控制台输出语言 [默认：%{language}]"
 log:
     Err:
         TYPE: "错误"
+        Args:
+            Error: "参数错误：%{message}"
+            LanguageFormat: "无效的语言格式：%{language}"
+            Package: "无效的输出类型：%{package}"
+            ProjectPath: "项目路径 \"%{path}\""
         CompileError: "编译错误"
         NotFound: "不存在"
         PermissionDenied: "权限不足"
@@ -45,9 +51,5 @@ log:
             UnexpectedEof: "未预期的文件结束"
             InvalidEscape: "无效的转义字符"
             MalformedChar: "无效的字符"
-        Invalid:
-            ARGS:
-                LanguageFormat: "无效的语言格式"
-                Package: "无效的输出类型"
     Warn:
         TYPE: "警告"

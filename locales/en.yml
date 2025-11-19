@@ -2,19 +2,25 @@ NAME: "Qingluan Compiler"
 DESCRIPTION: "Compile the source code of the Qingluan project"
 PACKAGE_MANAGER: "QingLuanPackageManager"
 ARGS:
-    usage: "Usage"
+    usage_title: "Usage"
+    usage_content: "%{app} [project_path] <options>"
     params: "Parameters"
     options: "Options"
     help: "Print Help"
     version: "Print Version"
     author: "Print Author"
     project_path: "Project path"
-    package: "Output type [def:"
-    os: "Target os [def:"
-    language: "Default console output language [def:"
+    package: "Output type [def:%{package}]"
+    os: "Target os [def:%{os}]"
+    language: "Default console output language [def:%{language}]"
 log:
     Err:
         TYPE: "error"
+        Args:
+            Error: "Args Error: %{message}"
+            LanguageFormat: "Invalid language formatting: %{language}"
+            Package: "Invalid output type: %{package}"
+            ProjectPath: "Project path \"%{path}\""
         CompileError: "Compilation error"
         NotFound: "does not exist"
         PermissionDenied: "Insufficient permissions"
@@ -45,9 +51,5 @@ log:
             UnexpectedEof: "Unexpected file ends"
             InvalidEscape: "Invalid escape characters"
             MalformedChar: "Invalid characters"
-        Invalid:
-            ARGS:
-                LanguageFormat: "Invalid language formatting"
-                Package: "Invalid output type"
     Warn:
         TYPE: "warning"

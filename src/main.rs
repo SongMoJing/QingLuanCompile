@@ -7,9 +7,12 @@ use clap::{Arg, ArgAction, Command};
 use colored::*;
 use regex::Regex;
 use rust_i18n::{i18n, t};
-use std::fs;
+use std::ffi::OsStr;
+use std::fmt::Formatter;
 use std::io::ErrorKind;
+use std::path::Path;
 use std::sync::OnceLock;
+use std::{env, fmt, fs, process};
 use sys_locale::get_locale;
 use target_lexicon::HOST;
 
@@ -19,7 +22,12 @@ mod parser;
 lazy_static::lazy_static! {
     static ref VERSION: String = String::from("t-0.1.0");
     static ref NAME: String = String::from(t!("NAME"));
-    static ref SHORT_NAME: String = String::from("QLC");
+    static ref FILE_NAME: String = env::args().next()
+        .as_ref()
+        .map(Path::new)
+        .and_then(Path::file_name)
+        .and_then(OsStr::to_str)
+        .map(String::from).unwrap_or(String::from("QLC"));
     static ref AUTHOR: String = String::from("PRC.松蓦箐 <Song_Mojing@outlook.com>");
 }
 
@@ -39,10 +47,18 @@ fn main() {
     }
     // 获得参数
     let args = CLI::parse();
-    println!("{:?}", args.os);
+    println!("项目路径：{}", args.project_path);
+    println!("输出到目标平台：{}", args.os);
+    println!("控制台输出语言：{}", args.language);
+    println!("输出的打包方式：{}", args.package);
     // 查看projectPath是否存在
     fs::metadata(&args.project_path).unwrap_or_else(|e| {
-        let log = Log::creat(e.kind(), args.project_path.as_str());
+        let log = Log::creat(
+            e.kind(),
+            t!("log.Err.Args.ProjectPath", path = args.project_path)
+                .to_string()
+                .as_str(),
+        );
         log.throw(match e.kind() {
             ErrorKind::NotFound => 21,
             ErrorKind::PermissionDenied => 22,
@@ -71,7 +87,7 @@ struct CLI {
 
 impl CLI {
     fn command() -> Command {
-        Command::new(SHORT_NAME.as_str())
+        Command::new(FILE_NAME.as_str())
             .version(VERSION.as_str())
             .about(t!("DESCRIPTION").to_string())
             .author(AUTHOR.as_str())
@@ -90,9 +106,9 @@ impl CLI {
                 Arg::new("package")
                     .short('p')
                     .long("package")
-                    .help(format!("{}{}]", t!("ARGS.package"), "release"))
+                    .help(t!("ARGS.package", package = Package::Debug.as_atr()).to_string())
                     .value_name("debug|release")
-                    .default_value("release")
+                    .default_value(Package::Debug.as_atr())
                     .hide_possible_values(true)
                     .hide_default_value(true),
             )
@@ -101,7 +117,7 @@ impl CLI {
                 Arg::new("os")
                     .short('o')
                     .long("os")
-                    .help(format!("{}{}]", t!("ARGS.os"), HOST))
+                    .help(t!("ARGS.os", os = HOST).to_string())
                     .value_name("os")
                     .hide_possible_values(true)
                     .hide_default_value(true),
@@ -111,11 +127,7 @@ impl CLI {
                 Arg::new("language")
                     .short('l')
                     .long("language")
-                    .help(format!(
-                        "{}{}]",
-                        t!("ARGS.language"),
-                        get_locale().unwrap_or(String::from("zh-CN"))
-                    ))
+                    .help(t!("ARGS.language", language = "zh-CN").to_string())
                     .value_name("lang"),
             )
             // 帮助
@@ -140,8 +152,8 @@ impl CLI {
         format!(
             r#"{name} {version}
 {{before-help}}{{about-section}}
-{usage}
-  {{usage}}
+{usage_title}
+  {usage_content}
 
 {arguments}
 {{positionals}}
@@ -152,7 +164,8 @@ impl CLI {
 {{after-help}}"#,
             name = t!("NAME").bright_green().bold(),
             version = VERSION.as_str().bright_red(),
-            usage = t!("ARGS.usage").bright_yellow().bold(),
+            usage_title = t!("ARGS.usage_title").bright_yellow().bold(),
+            usage_content = t!("ARGS.usage_content", app = FILE_NAME.as_str()).to_string(),
             arguments = t!("ARGS.params").bright_yellow().bold(),
             options = t!("ARGS.options").bright_yellow().bold()
         )
@@ -160,23 +173,29 @@ impl CLI {
 
     pub fn parse() -> Self {
         let cmd = Self::command();
-        let matches = cmd.get_matches();
+        let matches = match cmd.try_get_matches() {
+            Ok(matches) => matches,
+            Err(err) => {
+                // 捕获 clap 错误并进行本地化处理
+                let error_message = match err.kind() {
+                    _ => {
+                        // 对于其他类型的错误，尝试将其转换为本地化的错误信息
+                        let err_msg = err.to_string();
+                        // 这里可以根据需要进一步细化错误信息的本地化
+                        t!("log.Err.Args.Error", message = err_msg).to_string()
+                    }
+                };
+                Log::new(LogType::Err, error_message.as_str()).throw(13)
+            }
+        };
 
-        // 处理语言设置
+        // 处理语言设置（保持原有逻辑）
         if let Some(language) = matches.get_one::<String>("language") {
-            let re = Regex::new(r"^(?P<lang>\w+)(?:-(?P<region>\w+))?$").unwrap_or_else(|_| {
-                Log::new(
-                    LogType::Err,
-                    t!("log.Err.Invalid.ARGS.LanguageFormat")
-                        .to_string()
-                        .as_str(),
-                )
-                .throw(13)
-            });
+            let re = Regex::new(r"^[a-zA-Z]+(?:-[a-zA-Z]+)?$").unwrap();
             let caps = re.captures(language).unwrap_or_else(|| {
                 Log::new(
                     LogType::Err,
-                    t!("log.Err.Invalid.ARGS.LanguageFormat")
+                    t!("log.Err.Args.LanguageFormat", language = language)
                         .to_string()
                         .as_str(),
                 )
@@ -185,40 +204,46 @@ impl CLI {
             set_language(caps.get(0).unwrap().as_str());
         }
 
+        let mut cli = Self {
+            project_path: String::new(),
+            package: match matches.get_one::<String>("package").map(|s| s.as_str()) {
+                Some("debug") => Package::Debug,
+                Some("release") => Package::Release,
+                None => Package::Release,
+                Some(package) => Log::new(
+                    LogType::Err,
+                    t!("log.Err.Args.Package", package = package)
+                        .to_string()
+                        .as_str(),
+                )
+                .throw(13),
+            },
+            os: match matches.get_one::<String>("os").map(|s| s) {
+                None => HOST.to_string(),
+                s => s.unwrap().clone(),
+            },
+            language: match matches.get_one::<String>("language").map(|s| s) {
+                None => get_locale().unwrap_or(String::from("zh-CN")),
+                s => s.unwrap().clone(),
+            },
+        };
+
         if let Some(project_path) = matches
             .get_one::<String>("project_path")
             .map(|s| s.to_string())
         {
-            Self {
-                project_path,
-                package: match matches.get_one::<String>("package").map(|s| s.as_str()) {
-                    Some("debug") => Package::Debug,
-                    Some("release") => Package::Release,
-                    None => Package::Release,
-                    _ => Log::new(
-                        LogType::Err,
-                        t!("log.Err.Invalid.ARGS.Package").to_string().as_str(),
-                    )
-                    .throw(13),
-                },
-                os: match matches.get_one::<String>("os").map(|s| s) {
-                    None => HOST.to_string(),
-                    s => s.unwrap().clone(),
-                },
-                language: match matches.get_one::<String>("language").map(|s| s) {
-                    None => get_locale().unwrap_or(String::from("zh-CN")),
-                    s => s.unwrap().clone(),
-                },
-            }
+            cli.project_path = project_path;
         } else {
             if matches.get_flag("version") {
                 println!("{} {}", NAME.as_str(), VERSION.as_str());
-                std::process::exit(0);
+                process::exit(0);
             }
             let mut cmd = Self::command();
             cmd.print_help().unwrap();
-            std::process::exit(0);
+            process::exit(0);
         }
+
+        cli
     }
 }
 
@@ -226,4 +251,22 @@ impl CLI {
 enum Package {
     Debug,
     Release,
+}
+
+impl Package {
+    pub(crate) fn as_atr(&self) -> &str {
+        match self {
+            Package::Debug => "debug",
+            Package::Release => "release",
+        }
+    }
+}
+
+impl fmt::Display for Package {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Package::Debug => write!(f, "debug"),
+            Package::Release => write!(f, "release"),
+        }
+    }
 }

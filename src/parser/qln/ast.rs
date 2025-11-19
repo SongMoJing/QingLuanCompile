@@ -7,12 +7,12 @@ pub struct AST {
 }
 
 impl AST {
-	pub fn new(ast_type: ASTType) -> Self {
-		Self {
-			ast_type,
-			body: vec![],
-		}
-	}
+    pub fn new(ast_type: ASTType) -> Self {
+        Self {
+            ast_type,
+            body: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
