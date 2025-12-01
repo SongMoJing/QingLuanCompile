@@ -6,18 +6,18 @@
 
 ```
 用法
-  QingLuanCompile.exe [OPTIONS] [PATH]
+  QingLuanCompile.exe [项目路径] <参数>
 参数
   [PATH]  项目路径
 选项
-  -p, --package <debug|release>  输出类型 [默认：release]
+  -p, --package <debug|release>  输出类型 [默认：debug]
   -o, --os <os>                  目标操作系统 [默认：x86_64-pc-windows-msvc]
   -l, --language <lang>          默认控制台输出语言 [默认：zh-CN]
   -h, --help                     显示帮助
   -v, --version                  显示版本
 ```
 
-### 编译时报错
+### 编译时错误
 
 | 错误码    | 步骤   | 含义           |
 |--------|------|--------------|

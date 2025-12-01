@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use crate::_lib::io::{Log, LogType};
-use crate::parser::qln::Program;
 use crate::parser::toml::Config;
 use clap::{Arg, ArgAction, Command};
 use colored::*;
@@ -15,20 +14,20 @@ use std::sync::OnceLock;
 use std::{env, fmt, fs, process};
 use sys_locale::get_locale;
 use target_lexicon::HOST;
+use crate::parser::qln::Program;
 
 mod _lib;
 mod parser;
 
+const VERSION: &str = "t-0.1.0";
+
 lazy_static::lazy_static! {
-    static ref VERSION: String = String::from("t-0.1.0");
-    static ref NAME: String = String::from(t!("NAME"));
     static ref FILE_NAME: String = env::args().next()
         .as_ref()
         .map(Path::new)
         .and_then(Path::file_name)
         .and_then(OsStr::to_str)
-        .map(String::from).unwrap_or(String::from("QLC"));
-    static ref AUTHOR: String = String::from("PRC.松蓦箐 <Song_Mojing@outlook.com>");
+        .map(String::from).unwrap_or(String::from("qlc"));
 }
 
 i18n!("locales", fallback = "zh-CN");
@@ -88,9 +87,8 @@ struct CLI {
 impl CLI {
     fn command() -> Command {
         Command::new(FILE_NAME.as_str())
-            .version(VERSION.as_str())
+            .version(VERSION)
             .about(t!("DESCRIPTION").to_string())
-            .author(AUTHOR.as_str())
             .disable_help_flag(true)
             .disable_version_flag(true)
             .help_template(Self::custom_help_template())
@@ -151,6 +149,9 @@ impl CLI {
     fn custom_help_template() -> String {
         format!(
             r#"{name} {version}
+
+{about_author}
+  {author}
 {{before-help}}{{about-section}}
 {usage_title}
   {usage_content}
@@ -163,7 +164,9 @@ impl CLI {
 
 {{after-help}}"#,
             name = t!("NAME").bright_green().bold(),
-            version = VERSION.as_str().bright_red(),
+            version = VERSION.bright_red(),
+            about_author = t!("ARGS.about_author").bright_yellow().bold(),
+            author = t!("AUTHOR"),
             usage_title = t!("ARGS.usage_title").bright_yellow().bold(),
             usage_content = t!("ARGS.usage_content", app = FILE_NAME.as_str()).to_string(),
             arguments = t!("ARGS.params").bright_yellow().bold(),
@@ -176,16 +179,15 @@ impl CLI {
         let matches = match cmd.try_get_matches() {
             Ok(matches) => matches,
             Err(err) => {
-                // 捕获 clap 错误并进行本地化处理
-                let error_message = match err.kind() {
-                    _ => {
-                        // 对于其他类型的错误，尝试将其转换为本地化的错误信息
-                        let err_msg = err.to_string();
-                        // 这里可以根据需要进一步细化错误信息的本地化
-                        t!("log.Err.Args.Error", message = err_msg).to_string()
-                    }
-                };
-                Log::new(LogType::Err, error_message.as_str()).throw(13)
+                // let error_message = match err.kind() {
+                //     _ => {
+                //         // 对于其他类型的错误，尝试将其转换为本地化的错误信息
+                //         let err_msg = err.to_string();
+                //         // 这里可以根据需要进一步细化错误信息的本地化
+                //         t!("log.Err.Args.Error", message = err_msg).to_string()
+                //     }
+                // };
+                Log::new(LogType::Err, err.to_string().as_str()).throw(13)
             }
         };
 
@@ -235,7 +237,7 @@ impl CLI {
             cli.project_path = project_path;
         } else {
             if matches.get_flag("version") {
-                println!("{} {}", NAME.as_str(), VERSION.as_str());
+                println!("{} {}", t!("NAME"), VERSION);
                 process::exit(0);
             }
             let mut cmd = Self::command();

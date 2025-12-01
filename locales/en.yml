@@ -1,9 +1,11 @@
 NAME: "Qingluan Compiler"
 DESCRIPTION: "Compile the source code of the Qingluan project"
 PACKAGE_MANAGER: "QingLuanPackageManager"
+AUTHOR: "PRC.Song_MoJing <Song_Mojing@outlook.com>"
 ARGS:
     usage_title: "Usage"
     usage_content: "%{app} [project_path] <options>"
+    about_author: "Related authors"
     params: "Parameters"
     options: "Options"
     help: "Print Help"

@@ -1,9 +1,11 @@
 NAME: "青鸾编译器"
 DESCRIPTION: "编译青鸾项目源代码"
 PACKAGE_MANAGER: "QingLuanPackageManager"
+AUTHOR: "PRC.松蓦箐 <Song_Mojing@outlook.com>"
 ARGS:
     usage_title: "用法"
-    usage_content: "%{app} [项目路径] <参数>"
+    usage_content: "%{app} [项目路径] <选项>"
+    about_author: "相关作者"
     params: "参数"
     options: "选项"
     help: "显示帮助"
@@ -18,9 +20,6 @@ log:
         TYPE: "错误"
         Args:
             Error: "参数错误：%{message}"
-            LanguageFormat: "无效的语言格式：%{language}"
-            Package: "无效的输出类型：%{package}"
-            ProjectPath: "项目路径 \"%{path}\""
         CompileError: "编译错误"
         NotFound: "不存在"
         PermissionDenied: "权限不足"
