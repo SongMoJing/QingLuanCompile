@@ -3,15 +3,19 @@ use crate::parser::qln::token::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct AST {
     ast_type: ASTType,
-    body: Vec<Node>,
+    body: Node,
 }
 
 impl AST {
     pub fn new(ast_type: ASTType) -> Self {
         Self {
             ast_type,
-            body: vec![],
+            body: Node::File { body: vec![] },
         }
+    }
+
+    pub fn get_root(&self) -> &Node {
+        &self.body
     }
 }
 
@@ -23,6 +27,10 @@ pub enum ASTType {
 /// AST 节点定义
 #[derive(Debug, Clone, PartialEq)]
 pub enum Node {
+    File {
+        // 模块内容
+        body: Vec<Node>,
+    },
     Import {
         // 模块名
         name: TokenKind,

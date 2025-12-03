@@ -5,7 +5,7 @@ AUTHOR: "PRC.松蓦箐 <Song_Mojing@outlook.com>"
 ARGS:
     usage_title: "用法"
     usage_content: "%{app} [项目路径] <选项>"
-    about_author: "相关作者"
+    about_author: "作者"
     params: "参数"
     options: "选项"
     help: "显示帮助"

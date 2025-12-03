@@ -8,6 +8,7 @@ use rust_i18n::t;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
+use crate::parser::qln::ast::ASTType;
 
 pub(crate) mod ast;
 pub(crate) mod lexer;
@@ -46,22 +47,25 @@ impl Program {
             })
         });
         // 遍历src目录
-        for _entry in fs::read_dir(format!("{}/src", self.path)).unwrap_or_else(|e| {
+        for entry in fs::read_dir(format!("{}/src", self.path)).unwrap_or_else(|e| {
             let log = Log::creat(e.kind(), format!("{}: \n{}", toml.path(), e).as_str());
             log.throw(match e.kind() {
                 ErrorKind::NotFound => 21,
                 ErrorKind::PermissionDenied => 22,
                 _ => 20,
-            });
+            })
         }) {
-            // self.compile_file()
+            if let Ok(e) = entry {
+                self.compile_file(e.path().as_path());
+            }
         }
-        let qln_path = format!("{}/src/main.qln", self.path);
-        let path = Path::new(&qln_path);
-        let lexer = Lexer::new(path);
+    }
+
+    fn compile_file(&self, relative_path: &Path) {
+        let lexer = Lexer::new(relative_path);
         let (tokens, errors) = lexer
             .unwrap_or_else(|e| {
-                let log = Log::creat(e.kind(), path.to_str().unwrap());
+                let log = Log::creat(e.kind(), relative_path.to_str().unwrap());
                 log.throw(match e.kind() {
                     ErrorKind::NotFound => 21,
                     ErrorKind::PermissionDenied => 22,
@@ -70,17 +74,19 @@ impl Program {
             })
             .tokenize();
 
+        println!("{:?}", tokens);
+
         // 报告错误
         if !errors.is_empty() {
-            let source = fs::read_to_string(path).unwrap_or_else(|e| {
-                let log = Log::creat(e.kind(), path.to_str().unwrap());
+            let source = fs::read_to_string(relative_path).unwrap_or_else(|e| {
+                let log = Log::creat(e.kind(), relative_path.to_str().unwrap());
                 log.throw(match e.kind() {
                     ErrorKind::NotFound => 21,
                     ErrorKind::PermissionDenied => 22,
                     _ => 20,
                 })
             });
-            let mut reporter = ErrorReporter::new(&source, path);
+            let mut reporter = ErrorReporter::new(&source, relative_path);
             for (error, span) in errors {
                 reporter.add_error(error.clone(), span);
             }
@@ -91,14 +97,9 @@ impl Program {
             )
             .throw(1);
         } else {
-            let mut parser = ASTParser::new(tokens);
-            let ast: AST = parser.parse();
-            
-            println!("{:?}", ast);
+            let mut parser = ASTParser::new(tokens, ASTType::File);
+            parser.parse();
+            println!("{:?}", parser.get_ast());
         }
-    }
-
-    fn compile_file(&self, relative_path: &Path) {
-        let _path = Path::new(&relative_path);
     }
 }

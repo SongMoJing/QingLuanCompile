@@ -1,58 +1,86 @@
-// 导入类型和标准库
+import ql.std.console.out as console;
 import ql.lang.type {
-	String as str
+    String as str,
+    List,
+    Int.byte1 as I8
 };
-import ql.std.console.out as io;
 
-// 定义模块
-mod<pub> Main {
-	// 定义类
-	class<pub> Utils() {
-		// 属性
-		attr<pub> name: str = "Utils类";
+// 工具模块
+mod<pub> Utils {
+    class<pub> Vec1i() {
+        // 添加final属性，禁止修改属性值
+        attr<priv, final> x: I8;
 
-		// 静态调用
-		static {
-			// 静态属性初始化
-			io.print("${return 0x00200}静态属\u{0012}性初始化.");
-		}
+        init<pub>(x: I8) {
+            this.x = x;
+        }
 
-		// 方法
-		fn<pub> getName(&self) -> str {
-			return self.name;
-		}
+        // 添加final属性，禁止重写
+        fn<pub, final> getX() -> I8 {
+            return this.x;
+        }
 
-		// 内部类
-		class<pub, static> Task() {
-			// 构造函数
-			init<pub>(&self) {
-				// 输出
-				io.print("新对象.");
-			}
-		}
-	}
+        fn<pub> getPosiotn() -> List<I8> {
+            return new List.ArrayList<>(this.x);
+        }
+    }
 
-	// 定义类
-	class<pub> Task(): Main.Utils {
-		// 构造函数
-		init(&self) {
-			self.name = "Hello类";
-			io.print("新对象.");
-		}
+    // 继承到Vec1i
+    class<pub> Vec2i() -> Vec1i {
+        attr<pub, final> y: I8;
 
-		// 方法
-		fn<pub> say() {
-			io.print("Hello World!");
-		}
-	}
+        init<pub>(x: I8, y: I8) {
+            super(x);
+            this.y = y;
+        }
+
+        // 添加final属性，禁止重写
+        fn<pub, final> getY() -> I8 {
+            return this.y;
+        }
+
+        fn<pub, override> getPosiotn() -> List<I8> {
+            return new List.ArrayList<>(this.x, this.y);
+        }
+    }
 }
 
-/**
- * 入口函数
- */
-fn<pub> Main() {
-	// 创建对象
-	val obj = new Main.Hello().say();
-	// 输出
-	io.print(obj.getName());
+fn<pub> main() {
+    let vec1i: Utils.Vec1i = new Utils.Vec2i(1, 2);
+    console.println(vec1i.getX());
+    // 判断智能类型
+    // vec2i: Vec2i with bool
+    // if <exp> => 期待基本类型 bool
+    if let vec2i = vec1i.instanceOf(@class.Utils.Vec2i) {
+        // obj.call => 期待 obj?method>getY.noneArgs
+        console.println("vec2i的Y为 ${vec2i.getY()}");
+        console.println("vec2i的Posiotn为 ${
+            // obj.call => 期待 obj?method>getPosiotn.noneArgs
+            let position = vec2i.getPosiotn();
+            // return <exp> => 期待 exp?return>Any?method>toString.noneArgs
+            return "(${position[0]}, ${position[1]})";
+        }");
+    }
+}
+
+// 可以在不同位置构建同一个模块
+mod<pub> Utils {
+    // 添加final属性，禁止继承
+    class<pub, final> Vec3i -> Vec2i {
+        attr<pub, final> z: I8;
+
+        init<pub> (x: I8, y: I8, z: I8) {
+            super(x, y);
+            this.z = z;
+        }
+
+        // 添加final属性，禁止重写
+        fn<pub, final> getZ(q: I8) -> I8 {
+            return this.z;
+        }
+
+        fn<pub, override> getPosiotn() -> List<I8> {
+            return new List.ArrayList<>(this.x, this.y, this.z);
+        }
+    }
 }

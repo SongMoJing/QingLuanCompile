@@ -1,15 +1,9 @@
+use crate::_lib::io::Span;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
 	pub kind: TokenKind,
 	pub span: Span,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Span {
-	pub start_line: usize,
-	pub start_col: usize,
-	pub end_line: usize,
-	pub end_col: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -222,4 +216,6 @@ pub enum Symbol {
 	Comma,
 	/// `.`
 	Dot,
+	/// `@`
+	At,
 }

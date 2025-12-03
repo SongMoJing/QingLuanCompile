@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::_lib::io::{Log, LogType};
+use crate::parser::qln::Program;
 use crate::parser::toml::Config;
 use clap::{Arg, ArgAction, Command};
 use colored::*;
@@ -14,7 +15,6 @@ use std::sync::OnceLock;
 use std::{env, fmt, fs, process};
 use sys_locale::get_locale;
 use target_lexicon::HOST;
-use crate::parser::qln::Program;
 
 mod _lib;
 mod parser;
@@ -64,7 +64,8 @@ fn main() {
             _ => 20,
         });
     });
-    Program::new(args.project_path);
+    let program = Program::new(args.project_path);
+    program.compile_program();
 }
 
 /// ## 启用 ANSI 支持
@@ -149,10 +150,10 @@ impl CLI {
     fn custom_help_template() -> String {
         format!(
             r#"{name} {version}
-
+{{before-help}}{{about-section}}
 {about_author}
   {author}
-{{before-help}}{{about-section}}
+
 {usage_title}
   {usage_content}
 

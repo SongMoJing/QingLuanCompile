@@ -1,4 +1,4 @@
-use crate::_lib::io::{Char, Cursor, CursorPointing, FileWrapper, Log, LogType};
+use crate::_lib::io::{Char, Cursor, CursorPointing, FileWrapper, Log, LogType, Span};
 use crate::parser::qln::token::*;
 use colored::Colorize;
 use std::cmp::PartialEq;
@@ -149,7 +149,7 @@ impl Lexer {
             }
         }
 
-        // 添加文件结束标记
+        // 添加作用域结束标记
         let pos = self.cursor.get_pointing();
         self.tokens.push(Token {
             kind: TokenKind::EOS,
@@ -190,6 +190,7 @@ impl Lexer {
                 ':' => self.add_token(TokenKind::Symbol(Symbol::Colon), false),
                 ',' => self.add_token(TokenKind::Symbol(Symbol::Comma), false),
                 '.' => self.add_token(TokenKind::Symbol(Symbol::Dot), false),
+                '@' => self.add_token(TokenKind::Symbol(Symbol::At), false),
 
                 '^' => self.add_token(TokenKind::Op(Op::Caret), false),
                 '?' => self.add_token(TokenKind::Op(Op::Question), false),

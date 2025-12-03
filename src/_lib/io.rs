@@ -6,6 +6,15 @@ use std::process::exit;
 use colored::{ColoredString, Colorize};
 use rust_i18n::t;
 
+/// # 位置信息
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Span {
+	pub start_line: usize,
+	pub start_col: usize,
+	pub end_line: usize,
+	pub end_col: usize,
+}
+
 /// # 文件读取器
 pub struct FileWrapper {
 	works: bool,

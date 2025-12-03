@@ -5,7 +5,7 @@ AUTHOR: "PRC.Song_MoJing <Song_Mojing@outlook.com>"
 ARGS:
     usage_title: "Usage"
     usage_content: "%{app} [project_path] <options>"
-    about_author: "Related authors"
+    about_author: "Authors"
     params: "Parameters"
     options: "Options"
     help: "Print Help"
