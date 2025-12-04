@@ -91,6 +91,8 @@ pub enum KeySequenceControl {
 #[derive(Debug, Clone, PartialEq)]
 /// 引用分配
 pub enum KeyObjectAllocation {
+	/// `obj1 as obj2`
+	As,
 	/// `var a`
 	Var,
 	/// `val a`
@@ -333,6 +335,7 @@ impl Display for KeySequenceControl {
 impl Display for KeyObjectAllocation {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
+			KeyObjectAllocation::As => write!(f, "as"),
 			KeyObjectAllocation::Var => write!(f, "var"),
 			KeyObjectAllocation::Val => write!(f, "val"),
 		}

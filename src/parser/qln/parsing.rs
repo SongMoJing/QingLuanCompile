@@ -71,17 +71,13 @@ impl ASTParser {
     }
 
     fn parse_import(&mut self) {
-	    // import ql.std.console.out as console; -> name: console, path: ql.std.console.out
-	    // import ql.std.console.in; -> name: in, path: ql.std.console.in
+	    // import ql.std.console.out as console; -> name: 'console', path: 'ql.std.console.out'
+	    // import ql.std.console.in; -> name: 'in', path: 'ql.std.console.in'
 	    // import ql.lang.type {
-	    //     String as str, -> name: str, path: ql.lang.type.String
-	    //     List, -> name: List, path: ql.lang.type.List
-	    //     Int.byte1 as I8 -> name: I8, path: ql.lang.type.Int.byte1
+	    //     String as str, -> name: 'str', path: 'ql.lang.type.String'
+	    //     List, -> name: 'List', path: 'ql.lang.type.List'
+	    //     Int.byte1 as I8 -> name: 'I8', path: 'ql.lang.type.Int.byte1'
 	    // };
-	    let mut import = Node::Import {
-		    name: TokenKind::EOS,
-		    path: vec![],
-	    };
     }
 
     fn parse_mod(&mut self) {}
