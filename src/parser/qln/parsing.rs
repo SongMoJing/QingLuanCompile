@@ -1,6 +1,6 @@
 use crate::_lib::io::{Log, LogType, Span};
 use crate::parser::qln::ast::{ASTType, Node, AST};
-use crate::parser::qln::token::{Key, KeyStruct, Symbol, Token, TokenKind};
+use crate::parser::qln::token::{Key, KeyStruct, Token, TokenKind};
 use colored::Colorize;
 use rust_i18n::t;
 use std::collections::VecDeque;
