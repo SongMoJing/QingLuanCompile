@@ -79,7 +79,7 @@ impl Program {
 			relative_path.to_str().unwrap()
 		);
 
-		println!("Token ========\n{:?}", tokens);
+		// println!("Token ========\n{:?}", tokens);
 		// 报告错误
 		if !errors.is_empty() {
 			let source = fs::read_to_string(relative_path).unwrap_or_else(|e| {
@@ -101,7 +101,6 @@ impl Program {
 			)
 				.throw(1);
 		} else {
-			// Vec 转 VecDeque
 			let tokens = tokens.into_iter().collect::<VecDeque<_>>();
 			let mut parser = ASTParser::new(tokens, ASTType::File);
 			let (ast, errors) = parser.parse();
