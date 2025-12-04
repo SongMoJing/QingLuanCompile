@@ -124,7 +124,7 @@ impl Cursor {
 			self.num_column += 1;
 			return Char::Char(self.point);
 		}
-		return Char::EndFile;
+		Char::EndFile
 	}
 
 	pub fn get_file(&self) -> &FileWrapper {
