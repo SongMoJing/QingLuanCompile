@@ -50,5 +50,8 @@ log:
             UnexpectedEof: "未预期的文件结束"
             InvalidEscape: "无效的转义字符"
             MalformedChar: "无效的字符"
+        ParseError:
+            UnexpectedToken: "未预期的'%{token}'，期望%{expect}"
+            UnexpectedEnd: "未预期的文件结束"
     Warn:
         TYPE: "警告"

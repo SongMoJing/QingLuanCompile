@@ -1,14 +1,14 @@
+use std::collections::VecDeque;
 use crate::_lib::io::{Log, LogType};
-use crate::parser::qln::ast::AST;
-use crate::parser::qln::lexer::{ErrorReporter, Lexer};
-use crate::parser::qln::parsing::ASTParser;
+use crate::parser::qln::ast::ASTType;
+use crate::parser::qln::lexer::{LexErrorReporter, Lexer};
+use crate::parser::qln::parsing::{ASTParser, ParseErrorReporter};
 use crate::parser::toml::load_config;
 use crate::{_lib, PROJECT_CONFIG};
 use rust_i18n::t;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
-use crate::parser::qln::ast::ASTType;
 
 pub(crate) mod ast;
 pub(crate) mod lexer;
@@ -74,7 +74,7 @@ impl Program {
             })
             .tokenize();
 
-        println!("{:?}", tokens);
+        println!("File ============================================================================\n{}", relative_path.to_str().unwrap());
 
         // 报告错误
         if !errors.is_empty() {
@@ -86,7 +86,7 @@ impl Program {
                     _ => 20,
                 })
             });
-            let mut reporter = ErrorReporter::new(&source, relative_path);
+            let mut reporter = LexErrorReporter::new(&source, relative_path);
             for (error, span) in errors {
                 reporter.add_error(error.clone(), span);
             }
@@ -97,9 +97,31 @@ impl Program {
             )
             .throw(1);
         } else {
+            // Vec 转 VecDeque
+            let tokens = tokens.into_iter().collect::<VecDeque<_>>();
             let mut parser = ASTParser::new(tokens, ASTType::File);
-            parser.parse();
-            println!("{:?}", parser.get_ast());
+            let (ast, errors) = parser.parse();
+            println!("Tokens ========\n{:?}", ast);
+            if !errors.is_empty() {
+                let source = fs::read_to_string(relative_path).unwrap_or_else(|e| {
+                    let log = Log::creat(e.kind(), relative_path.to_str().unwrap());
+                    log.throw(match e.kind() {
+                        ErrorKind::NotFound => 21,
+                        ErrorKind::PermissionDenied => 22,
+                        _ => 20,
+                    })
+                });
+                let mut reporter = ParseErrorReporter::new(&source, relative_path);
+                for (error, span) in errors {
+                    reporter.add_error(error.clone(), span);
+                }
+                reporter.report();
+                Log::new(
+                    LogType::Err,
+                    t!("log.Err.CompileError").to_string().as_str(),
+                )
+                    .throw(1);
+            }
         }
     }
 }

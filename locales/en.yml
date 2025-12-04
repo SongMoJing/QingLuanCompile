@@ -53,5 +53,8 @@ log:
             UnexpectedEof: "Unexpected file ends"
             InvalidEscape: "Invalid escape characters"
             MalformedChar: "Invalid characters"
+        ParseError:
+            UnexpectedToken: "Unexpected '%{token}', expect %{expect}"
+            UnexpectedEnd: "Unexpected file ends"
     Warn:
         TYPE: "warning"

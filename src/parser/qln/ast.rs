@@ -1,4 +1,5 @@
 use crate::parser::qln::token::*;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AST {
@@ -111,6 +112,13 @@ pub enum Node {
         // 不满足条件时执行
         else_body: Option<Vec<Node>>,
     },
+    // 泛型类型
+    GenericType {
+        // 基础类型
+        base: String,
+        // 泛型参数
+        params: Vec<Node>,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

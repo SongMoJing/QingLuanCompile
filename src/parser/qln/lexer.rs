@@ -768,15 +768,15 @@ impl Lexer {
 }
 
 /// # 错误报告器
-pub struct ErrorReporter {
+pub struct LexErrorReporter {
     source: String,
     file: String,
     errors: Vec<(LexError, Span)>,
 }
 
-impl ErrorReporter {
+impl LexErrorReporter {
     pub fn new(source: &str, file: &Path) -> Self {
-        ErrorReporter {
+        LexErrorReporter {
             source: source.to_string(),
             file: file.to_string_lossy().to_string().replace("\\", "/"),
             errors: Vec::new(),
@@ -806,8 +806,8 @@ impl ErrorReporter {
             Log::new(
                 LogType::Err,
                 &format!(
-                    "[E{:04}] {} \n{}{} {}:{}:{}",
-                    self.error_code(error),
+                    "{} {} \n{}{} {}:{}:{}",
+                    format!("[E{:04}]", self.error_code(error)).bright_cyan(),
                     message,
                     " ".repeat(line_num.len()),
                     "-->".bright_cyan(),
