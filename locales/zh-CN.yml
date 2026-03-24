@@ -15,6 +15,7 @@ ARGS:
     package: "输出类型 [默认：%{package}]"
     os: "目标操作系统 [默认：%{os}]"
     language: "默认控制台输出语言 [默认：%{language}]"
+    thread_count: "编译时允许启用的最大线程数（不包括主线程） [默认：%{thread_count}]"
 log:
     Err:
         TYPE: "错误"

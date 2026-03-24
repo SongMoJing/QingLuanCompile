@@ -1,5 +1,5 @@
 use crate::_lib::io::{Char, Cursor, CursorPointing, FileWrapper, Log, LogType, Span};
-use crate::parser::qln::token::*;
+use crate::parser_qln::model_token::*;
 use colored::Colorize;
 use std::cmp::PartialEq;
 use std::io::{Error, ErrorKind};

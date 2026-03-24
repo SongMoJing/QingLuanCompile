@@ -1,0 +1,61 @@
+import qln.build {
+    BuildConfig,
+    DefaultConfig,
+    Build,
+    Dependencies,
+    Implementation,
+    Task
+};
+import qln.std.console.Log;
+
+
+fn main() {
+    Log.d("Hello World!");
+}
+
+#build(Config)
+class app: BuildConfig {
+    attr<override> defaultConfig = DefaultConfig() {
+        attr<override> sdk = "qingLuan-2601A";
+        attr<override> version_code = 1;
+        attr<override> version_name = "1.0.0";
+        attr<override> author = [
+            "PRC.松蓦箐 <Song_Mojing@Outlook.com>"
+        ];
+    };
+
+    attr<override> build = Build() {
+        attr<override> debug = Build.Debug() {
+            attr<override> stdLog = true;
+        };
+        attr<override> release = Build.Release() {
+            attr<override> stdLog = false;
+        };
+    };
+
+    attr<override> dependencies: Dependencies = DependenciesImpl();
+
+    attr<override> tasks = [
+        Task(name = "print", desc = "打印", action = print)
+    ];
+
+    fn<override> task_build(self) {
+        println("building...");
+        super.task_build();
+    }
+
+    fn<override> task_clean(self) {
+        println("cleaning...");
+        super.task_clean();
+    }
+
+    fn print(self) {
+        println("Hello, World.");
+    }
+}
+
+class DependenciesImpl: Dependencies {
+    attr<override> implementation = [
+        Implementation(package = "examLib", version = "0.1.0")
+    ];
+}

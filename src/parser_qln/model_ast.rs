@@ -1,4 +1,4 @@
-use crate::parser::qln::token::*;
+use crate::parser_qln::model_token::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AST {

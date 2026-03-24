@@ -21,7 +21,7 @@ mod<pub> Utils {
         }
 
         fn<pub> getPosiotn() -> List<I8> {
-            return new List.ArrayList<>(this.x);
+            return List.ArrayList<>(this.x);
         }
     }
 
@@ -40,13 +40,13 @@ mod<pub> Utils {
         }
 
         fn<pub, override> getPosiotn() -> List<I8> {
-            return new List.ArrayList<>(this.x, this.y);
+            return List.ArrayList<>(this.x, this.y);
         }
     }
 }
 
 fn<pub> main() {
-    let vec1i: Utils.Vec1i = new Utils.Vec2i(1, 2);
+    let vec1i: Utils.Vec1i = Utils.Vec2i(1, 2);
     console.println(vec1i.getX());
     // 判断智能类型
     // vec2i: Vec2i with bool
@@ -80,7 +80,7 @@ mod<pub> Utils {
         }
 
         fn<pub, override> getPosiotn() -> List<I8> {
-            return new List.ArrayList<>(this.x, this.y, this.z);
+            return List.ArrayList<>(this.x, this.y, this.z);
         }
     }
 }
